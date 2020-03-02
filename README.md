@@ -1,2 +1,2 @@
-# tushare_cache
+# cntus
 local cache for tushare stock data
