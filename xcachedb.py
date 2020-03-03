@@ -81,6 +81,27 @@ class XCacheDB(object):
         return sdb
 
 
+def find_closest_date(all_dates, dt, mode='backward'):
+    """
+
+    :param all_dates:
+    :param dt:
+    :param mode:
+    :return:
+    """
+    tt_all_dates = pd.to_datetime(all_dates, format='%Y%m%d')
+    tt_dt = pd.Timestamp(dt)
+    if mode == 'backward':
+        valid = tt_all_dates[tt_all_dates <= tt_dt]
+        if len(valid) > 0:
+            return valid[-1].strftime('%Y%m%d')
+    else:
+        valid = tt_all_dates[tt_all_dates >= tt_dt]
+        if len(valid) > 0:
+            return valid[0].strftime('%Y%m%d')
+    return None
+
+
 class KVTYPE(IntEnum):
     TPK_RAW = 1  # Raw key, o order
     TPK_DT_DAY = 2  # Datatime,
@@ -118,7 +139,7 @@ class XcAccessor(object):
                 real_key = force_bytes(key)
         elif self.tpkey == KVTYPE.TPK_DT_MONTH:
             if isinstance(key, pd.Timestamp):
-                real_key = force_bytes(key.strftime('%Y%m'))
+                real_key = force_bytes(key.strftime('%Y%m%d'))
             else:
                 real_key = force_bytes(key)
         else:
@@ -157,9 +178,11 @@ class XcAccessor(object):
             cols = self.metadata['columns']
             realval = pd.DataFrame(data=val, columns=cols)
         elif self.tpval == KVTYPE.TPV_SER_ROW:
+            val = pickle.loads(val)
             cols = self.metadata['columns']
             realval = pd.Series(data=val, columns=cols)
         elif self.tpval == KVTYPE.TPV_SER_COL:
+            val = pickle.loads(val)
             realval = pd.Series(data=val)
         else:
             realval = val
