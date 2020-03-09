@@ -13,6 +13,8 @@ log = Logger('tusdb')
 LEVEL_DB_NAME = 'TUS_DB'
 LEVEL_DBS = {}
 
+DATE_FORMAT = '%Y%m%d'
+DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 def force_bytes(s):
     if isinstance(s, str):
@@ -73,7 +75,7 @@ class XCacheDB(object):
 
     def get_sdb(self, sdb_path: str):
         try:
-            log.info('>>SDB>>{}'.format(sdb_path))
+            # log.info('>>SDB>>{}'.format(sdb_path))
             sdb = self._get_sdb(self.db, sdb_path)
         except:
             raise ValueError('create sdb error')
@@ -81,31 +83,9 @@ class XCacheDB(object):
         return sdb
 
 
-def find_closest_date(all_dates, dt, mode='backward'):
-    """
-
-    :param all_dates:
-    :param dt:
-    :param mode:
-    :return:
-    """
-    tt_all_dates = pd.to_datetime(all_dates, format='%Y%m%d')
-    tt_dt = pd.Timestamp(dt)
-    if mode == 'backward':
-        valid = tt_all_dates[tt_all_dates <= tt_dt]
-        if len(valid) > 0:
-            return valid[-1].strftime('%Y%m%d')
-    else:
-        valid = tt_all_dates[tt_all_dates >= tt_dt]
-        if len(valid) > 0:
-            return valid[0].strftime('%Y%m%d')
-    return None
-
-
 class KVTYPE(IntEnum):
     TPK_RAW = 1  # Raw key, o order
-    TPK_DT_DAY = 2  # Datatime,
-    TPK_DT_MONTH = 3
+    TPK_DATE = 2  # Datatime,
     TPK_INT_SEQ = 4  # sequence
 
     TPV_DFRAME = 11  # metadata colume names
@@ -113,6 +93,12 @@ class KVTYPE(IntEnum):
     TPV_SER_COL = 13  #
     TPV_NARR_1D = 14
     TPV_NARR_2D = 15
+
+
+"""
+ if value not exist, use this valid to indicate 
+"""
+NOT_EXIST = b'NA'
 
 
 class XcAccessor(object):
@@ -132,12 +118,12 @@ class XcAccessor(object):
         return
 
     def to_db_key(self, key):
-        if self.tpkey == KVTYPE.TPK_DT_DAY:
+        if self.tpkey == KVTYPE.TPK_DATE:
             if isinstance(key, pd.Timestamp):
                 real_key = force_bytes(key.strftime('%Y%m%d'))
             else:
                 real_key = force_bytes(key)
-        elif self.tpkey == KVTYPE.TPK_DT_MONTH:
+        elif self.tpkey == KVTYPE.TPK_DATE:
             if isinstance(key, pd.Timestamp):
                 real_key = force_bytes(key.strftime('%Y%m%d'))
             else:
@@ -151,21 +137,28 @@ class XcAccessor(object):
         """"""
         if self.tpval == KVTYPE.TPV_DFRAME:
             if isinstance(val, pd.DataFrame):
+                if val.empty:
+                    return NOT_EXIST
                 return pickle.dumps(val.values)
             else:
                 return None
-
         elif self.tpval == KVTYPE.TPV_SER_ROW:
             if isinstance(val, pd.Series):
+                if val.empty:
+                    return NOT_EXIST
                 return pickle.dumps(val.values)
         elif self.tpval == KVTYPE.TPV_SER_COL:
             if isinstance(val, pd.Series):
+                if val.empty:
+                    return NOT_EXIST
                 return pickle.dumps(val.values)
 
         elif self.tpval == KVTYPE.TPV_NARR_1D or \
                 self.tpval == KVTYPE.TPV_NARR_2D:
             if isinstance(val, np.ndarray):
-                return pickle.dumps(val.values)
+                if val.size == 0:
+                    return NOT_EXIST
+                return pickle.dumps(val)
         else:
             return force_bytes(val)
 
@@ -174,23 +167,36 @@ class XcAccessor(object):
     def to_val_out(self, val):
 
         if self.tpval == KVTYPE.TPV_DFRAME:
-            val = pickle.loads(val)
             cols = self.metadata['columns']
-            realval = pd.DataFrame(data=val, columns=cols)
+            if val == NOT_EXIST:
+                realval = pd.DataFrame(columns=cols)
+            else:
+                val = pickle.loads(val)
+                realval = pd.DataFrame(data=val, columns=cols)
         elif self.tpval == KVTYPE.TPV_SER_ROW:
-            val = pickle.loads(val)
             cols = self.metadata['columns']
-            realval = pd.Series(data=val, columns=cols)
+            if val == NOT_EXIST:
+                realval = pd.Series(index=cols)
+            else:
+                val = pickle.loads(val)
+                realval = pd.Series(data=val, index=cols)
         elif self.tpval == KVTYPE.TPV_SER_COL:
-            val = pickle.loads(val)
-            realval = pd.Series(data=val)
+            if val == NOT_EXIST:
+                realval = pd.Series()
+            else:
+                val = pickle.loads(val)
+                realval = pd.Series(data=val)
         else:
             realval = val
 
         return realval
 
     def load(self, key):
-        """"""
+        """
+
+        :param key:
+        :return:
+        """
         key = self.to_db_key(key)
         if key:
             val = self.db.get(key)
@@ -217,7 +223,7 @@ class XcAccessor(object):
         return keys
 
     def get_key_range(self):
-        if self.tpkey == KVTYPE.TPK_DT_DAY or self.tpkey == KVTYPE.TPK_DT_MONTH:
+        if self.tpkey == KVTYPE.TPK_DATE or self.tpkey == KVTYPE.TPK_DATE:
             iter = self.db.iterator(include_value=False)
             start = force_string(iter.next())
             end = force_string(iter.seek_to_stop().prev())
