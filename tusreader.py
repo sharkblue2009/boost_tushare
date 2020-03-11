@@ -40,25 +40,25 @@ def symbol_std_to_tus(symbol: str):
     return code
 
 
-def find_closest_date(all_dates, dt, mode='backward'):
-    """
-
-    :param all_dates:
-    :param dt:
-    :param mode:
-    :return:
-    """
-    tt_all_dates = pd.to_datetime(all_dates, format='%Y%m%d')
-    tt_dt = pd.Timestamp(dt)
-    if mode == 'backward':
-        valid = tt_all_dates[tt_all_dates <= tt_dt]
-        if len(valid) > 0:
-            return valid[-1].strftime('%Y%m%d')
-    else:
-        valid = tt_all_dates[tt_all_dates >= tt_dt]
-        if len(valid) > 0:
-            return valid[0].strftime('%Y%m%d')
-    return None
+# def find_closest_date(all_dates, dt, mode='backward'):
+#     """
+# 
+#     :param all_dates:
+#     :param dt:
+#     :param mode:
+#     :return:
+#     """
+#     tt_all_dates = pd.to_datetime(all_dates, format='%Y%m%d')
+#     tt_dt = pd.Timestamp(dt)
+#     if mode == 'backward':
+#         valid = tt_all_dates[tt_all_dates <= tt_dt]
+#         if len(valid) > 0:
+#             return valid[-1].strftime('%Y%m%d')
+#     else:
+#         valid = tt_all_dates[tt_all_dates >= tt_dt]
+#         if len(valid) > 0:
+#             return valid[0].strftime('%Y%m%d')
+#     return None
 
 
 class TusReader(object):
@@ -193,6 +193,78 @@ class TusReader(object):
             else:
                 data = data.rename(columns={'vol': 'volume'})
                 out[dtkey] = data.reindex(columns=EQUITY_DAILY_PRICE_META['columns'])
+            db.save(dtkey, out[dtkey])
+
+        all_out = pd.concat(out)
+        all_out = all_out.set_index('trade_date', drop=True)
+        all_out = all_out.sort_index(ascending=True)
+        all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
+        all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
+        return all_out
+
+    def get_stock_daily_info(self, code, start, end, refresh=0):
+        """
+
+        :param code:
+        :param start:
+        :param end:
+        :param refresh:
+        :return:
+        """
+        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_DAILY_INFO_META)
+
+        tscode = symbol_std_to_tus(code)
+        astype, list_date, delist_date = self._code_to_type(code)
+
+        tstart = pd.Timestamp(start)
+        tend = pd.Timestamp(end)
+
+        # 当前交易品种的有效交易日历
+        today = pd.Timestamp.today()
+        tstart = max([list_date, tstart])
+        tend = min([delist_date, tend, today])
+        if astype == 'E':
+            suspend = self.get_stock_suspend(code)
+            sus_dates = pd.to_datetime(suspend['suspend_date'])
+
+        m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
+        m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
+        trade_cal = self.trade_cal_index
+        trd_dates = trade_cal[(trade_cal >= m_start) & (trade_cal <= m_end)]
+
+        vdates = pd.date_range(m_start, m_end, freq='MS')
+        out = {}
+        for dd in vdates:
+            dtkey = dd.strftime(DATE_FORMAT)
+            if refresh == 0 or refresh == 1:
+                val = db.load(dtkey)
+                if val is not None:
+                    if refresh == 1:
+                        # price_data integrity check.
+                        dd_mend = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month)
+                        days_tcal = (trd_dates[(trd_dates >= dd) & (trd_dates <= dd_mend)])
+                        days_susp = (sus_dates[(sus_dates >= dd) & (sus_dates <= dd_mend)])
+                        if len(days_tcal) <= len(val) + len(days_susp):
+                            # 股票存在停牌半天的情况，也会被计入suspend列表
+                            out[dtkey] = val
+                            continue
+                        log.info('incomplete, reload-{}, {}, {}, {}'.format(dd, days_susp, days_tcal, val))
+                    else:
+                        out[dtkey] = val
+                        continue
+
+            start_raw = dd.strftime(DATE_FORMAT)
+            end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
+            data = self.pro_api.daily_basic(ts_code=tscode, start_date=start_raw, end_date=end_raw,
+                                            fields=STOCK_DAILY_INFO_META['columns'])
+            if data is None:
+                # create empyt dataframe for nan data.
+                out[dtkey] = pd.DataFrame(columns=STOCK_DAILY_INFO_META['columns'])
+            elif data.empty:
+                out[dtkey] = pd.DataFrame(columns=STOCK_DAILY_INFO_META['columns'])
+            else:
+                out[dtkey] = data.reindex(columns=STOCK_DAILY_INFO_META['columns'])
             db.save(dtkey, out[dtkey])
 
         all_out = pd.concat(out)
@@ -455,50 +527,6 @@ class TusReader(object):
             return info
         return None
 
-    def get_stock_daily_info(self, code, start, end, refresh=0):
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_DAILY_INFO_META)
-
-        tscode = symbol_std_to_tus(code)
-        astype, list_date, delist_date = self._code_to_type(code)
-
-        tstart = pd.Timestamp(start)
-        tstart = list_date if list_date > tstart else tstart
-        tend = pd.Timestamp(end)
-        tend = delist_date if tend > delist_date else tend
-        m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
-        m_end = pd.Timestamp(year=tend.year, month=tend.month, day=1)
-
-        vdates = pd.date_range(m_start, m_end, freq='MS')
-        out = {}
-        for dd in vdates:
-            dtkey = dd.strftime(DATE_FORMAT)
-            if refresh == 0 or (refresh == 1 and dd != vdates[-1]):
-                # print(dd)
-                val = db.load(dtkey)
-                if val is not None:
-                    out[dtkey] = val
-                    continue
-            start_raw = dd.strftime(DATE_FORMAT)
-            end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
-            data = ts.pro_bar(tscode, asset=astype, start_date=start_raw, end_date=end_raw, freq='D')
-            if data is None:
-                # create empyt dataframe for nan data.
-                out[dtkey] = pd.DataFrame(columns=EQUITY_DAILY_PRICE_META['columns'])
-            elif data.empty:
-                out[dtkey] = pd.DataFrame(columns=EQUITY_DAILY_PRICE_META['columns'])
-            else:
-                data = data.rename(columns={'vol': 'volume'})
-                out[dtkey] = data.reindex(columns=EQUITY_DAILY_PRICE_META['columns'])
-            db.save(dtkey, out[dtkey])
-
-        all_out = pd.concat(out)
-        all_out = all_out.set_index('trade_date', drop=True)
-        all_out = all_out.sort_index(ascending=True)
-        all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
-        all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
-        return all_out
-
 
 if __name__ == '__main__':
     import logbook, sys
@@ -521,10 +549,11 @@ if __name__ == '__main__':
     # df = reader.get_stock_xdxr('002465.XSHE', refresh=True)
     # df = reader.get_stock_xdxr('002465.XSHE', refresh=False)
 
-    df = reader.get_price_daily('002465.XSHE', '20150201', '20200207', refresh=1)
+    # df = reader.get_price_daily('002465.XSHE', '20150201', '20200207', refresh=1)
     # df = reader.get_price_minute('002465.XSHE', '20150227', '20150227', refresh=1)
 
     # df = reader.get_stock_suspend('000002.XSHE', refresh=False)
+    df = reader.get_stock_daily_info('002465.XSHE', '20150201', '20200207', refresh=1)
     print(df)
 
     # print(timeit.Timer(lambda: reader.get_stock_xdxr('002465.XSHE', refresh=True)).timeit(1))
