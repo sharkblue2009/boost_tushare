@@ -22,7 +22,7 @@ class TusSdbs(Enum):
     SDB_STOCK_FIN_CASHFLOW = 'ts:stock_finance:cashflow:'
     SDB_STOCK_FIN_INDICATOR = 'ts:stock_finance:indicator:'
     SDB_STOCK_DAILY_MARGIN = 'ts:daily_margin:'
-
+    SDB_STOCK_ADJFACTOR = 'ts:stock_adj_factor:'
 
 ASSET_INFO_META = {
     'columns': ['ts_code', 'exchange', 'name', 'start_date', 'end_date'],
@@ -72,6 +72,13 @@ EQUITY_MINUTE_PRICE_META = {
         'close',
         'volume',
         'amount',
+    ]
+}
+
+STOCK_ADJFACTOR_META = {
+    'columns': [
+        'trade_date',
+        'adj_factor',
     ]
 }
 
