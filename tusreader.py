@@ -3,7 +3,7 @@ from trading_calendars import get_calendar
 import tushare as ts
 from cntus._passwd import TUS_TOKEN
 import pandas as pd
-from utils.memoize import lazyval
+from cntus.utils.memoize import lazyval
 
 from cntus.xcachedb import *
 from cntus.dbschema import *
@@ -42,7 +42,7 @@ def symbol_std_to_tus(symbol: str):
 
 # def find_closest_date(all_dates, dt, mode='backward'):
 #     """
-# 
+#
 #     :param all_dates:
 #     :param dt:
 #     :param mode:
@@ -105,7 +105,7 @@ class TusReader(object):
         info = info.set_index('ts_code', drop=True)
         return info
 
-    def _code_to_type(self, code):
+    def asset_lifetime(self, code):
         if code in self.stock_info.index.values:
             info = self.stock_info
             astype = 'E'
@@ -142,7 +142,7 @@ class TusReader(object):
                         KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_DAILY_PRICE_META)
 
         tscode = symbol_std_to_tus(code)
-        astype, list_date, delist_date = self._code_to_type(code)
+        astype, list_date, delist_date = self.asset_lifetime(code)
 
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
@@ -204,7 +204,7 @@ class TusReader(object):
 
     def get_stock_daily_info(self, code, start, end, refresh=0):
         """
-
+        Get stock daily information.
         :param code:
         :param start:
         :param end:
@@ -215,7 +215,7 @@ class TusReader(object):
                         KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_DAILY_INFO_META)
 
         tscode = symbol_std_to_tus(code)
-        astype, list_date, delist_date = self._code_to_type(code)
+        astype, list_date, delist_date = self.asset_lifetime(code)
 
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
@@ -296,7 +296,7 @@ class TusReader(object):
                         KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
 
         tscode = symbol_std_to_tus(code)
-        astype, list_date, delist_date = self._code_to_type(code)
+        astype, list_date, delist_date = self.asset_lifetime(code)
 
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
@@ -362,7 +362,13 @@ class TusReader(object):
         # for ff in STOCK_XDXR_META['columns']:
         #     fields+=ff+','
         info = self.pro_api.suspend(ts_code=tscode)
-        info_to_db = info.reindex(columns=STOCK_SUSPEND_META['columns'])
+        if info is None:
+            # create empyt dataframe for nan data.
+            info_to_db = pd.DataFrame(columns=STOCK_FIN_INCOME_META['columns'])
+        elif info.empty:
+            info_to_db = pd.DataFrame(columns=STOCK_FIN_INCOME_META['columns'])
+        else:
+            info_to_db = info.reindex(columns=STOCK_SUSPEND_META['columns'])
         db.save(code, info_to_db)
         return info_to_db
 
@@ -393,8 +399,8 @@ class TusReader(object):
 
     def get_index_info(self):
         """"""
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_EQUITY_INFO.value),
-                        KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, EQUITY_INFO_META)
+        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_ASSET_INFO.value),
+                        KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, ASSET_INFO_META)
 
         val = db.load(TusKeys.INDEX_INFO.value)
         if val is not None:
@@ -429,8 +435,8 @@ class TusReader(object):
 
     def get_stock_info(self):
         """"""
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_EQUITY_INFO.value),
-                        KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, EQUITY_INFO_META)
+        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_ASSET_INFO.value),
+                        KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, ASSET_INFO_META)
 
         val = db.load(TusKeys.STOCK_INFO.value)
         if val is not None:
@@ -458,8 +464,8 @@ class TusReader(object):
 
     def get_fund_info(self):
         """"""
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_EQUITY_INFO.value),
-                        KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, EQUITY_INFO_META)
+        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_ASSET_INFO.value),
+                        KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, ASSET_INFO_META)
 
         val = db.load(TusKeys.FUND_INFO.value)
         if val is not None:
@@ -527,6 +533,14 @@ class TusReader(object):
             return info
         return None
 
+
+greader = None
+
+def get_tusreader():
+    global greader
+    if greader is None:
+        greader = TusReader()
+    return greader
 
 if __name__ == '__main__':
     import logbook, sys
