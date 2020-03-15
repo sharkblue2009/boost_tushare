@@ -341,7 +341,7 @@ class TusReader(object):
 
             start_raw = dd.strftime(DATE_FORMAT)
             end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
-            data = ts.pro_api.adj_factor(tscode, start_date=start_raw, end_date=end_raw)
+            data = self.pro_api.adj_factor(ts_code=tscode, start_date=start_raw, end_date=end_raw, fields=fcols)
             if data is None:
                 # create empyt dataframe for nan data.
                 out[dtkey] = pd.DataFrame(columns=fcols)
@@ -656,14 +656,18 @@ if __name__ == '__main__':
     # df = reader.trade_cal
     # df = reader.get_index_weight('399300.XSHE', '20200318', refresh=False)
     # df = reader.get_stock_xdxr('002465.XSHE', refresh=True)
-    df = reader.get_stock_xdxr('000002.XSHE', refresh=False)
+    # df = reader.get_stock_xdxr('000002.XSHE', refresh=False)
 
-    # df = reader.get_price_daily('002465.XSHE', '20150201', '20200207', refresh=1)
+    df_day = reader.get_price_daily('002465.XSHE', '20150201', '20200207', refresh=1)
     # df = reader.get_price_minute('002465.XSHE', '20150227', '20150227', refresh=1)
+    df = reader.get_stock_adjfactor('002465.XSHE', '20150201', '20200207', refresh=1)
+    df = df.reindex(df_day.index)
+    print(df_day['close']*df['adj_factor']/df['adj_factor'][-1])
 
     # df = reader.get_stock_suspend('000002.XSHE', refresh=False)
     # df = reader.get_stock_daily_info('002465.XSHE', '20150201', '20200207', refresh=1)
-    print(df)
+
+    # print(df)
 
     # print(timeit.Timer(lambda: reader.get_stock_xdxr('002465.XSHE', refresh=True)).timeit(1))
     # print(timeit.Timer(lambda: reader.get_index_weight('399300.XSHE', '20200318', refresh=True)).timeit(1))
