@@ -300,6 +300,64 @@ class TusReader(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
+    def get_stock_adjfactor(self, code, start: str, end: str, refresh=0):
+        """
+        按月存取股票的日线数据
+        前复权:
+            当日收盘价 × 当日复权因子 / 最新复权因子
+        后复权:
+            当日收盘价 × 当日复权因子
+        :param code:
+        :param start:
+        :param end:
+        :param refresh:
+        :return:
+        """
+        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_ADJFACTOR_META)
+
+        tscode = symbol_std_to_tus(code)
+        astype, list_date, delist_date = self.asset_lifetime(code)
+
+        tstart = pd.Timestamp(start)
+        tend = pd.Timestamp(end)
+        vdates = self.gen_keys_monthly(tstart, tend, list_date, delist_date)
+
+        fcols = STOCK_ADJFACTOR_META['columns']
+        out = {}
+        for dd in vdates:
+            dtkey = dd.strftime(DATE_FORMAT)
+            if refresh == 0 or refresh == 1:
+                val = db.load(dtkey)
+                if val is not None:
+                    if refresh == 1:
+                        # price_data integrity check.
+                        if self.integrity_check_monthly(code, dd, val, astype):
+                            out[dtkey] = val
+                            continue
+                    else:
+                        out[dtkey] = val
+                        continue
+
+            start_raw = dd.strftime(DATE_FORMAT)
+            end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
+            data = ts.pro_api.adj_factor(tscode, start_date=start_raw, end_date=end_raw)
+            if data is None:
+                # create empyt dataframe for nan data.
+                out[dtkey] = pd.DataFrame(columns=fcols)
+            elif data.empty:
+                out[dtkey] = pd.DataFrame(columns=fcols)
+            else:
+                out[dtkey] = data.reindex(columns=fcols)
+            db.save(dtkey, out[dtkey])
+
+        all_out = pd.concat(out)
+        all_out = all_out.set_index('trade_date', drop=True)
+        all_out = all_out.sort_index(ascending=True)
+        all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
+        all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
+        return all_out
+
     def get_price_minute(self, code, start, end, refresh=False):
         """
         按日存取股票的分钟线数据
@@ -567,85 +625,6 @@ class TusReader(object):
             db.save(dtkey, info)
             return info
         return None
-
-    def get_stock_adjfactor(self, code, start: str, end: str, refresh=1):
-        """
-        按月存取股票的日线数据
-        前复权:
-            当日收盘价 × 当日复权因子 / 最新复权因子
-        后复权:
-            当日收盘价 × 当日复权因子
-        :param code:
-        :param start:
-        :param end:
-        :param refresh:
-        :return:
-        """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_ADJFACTOR_META)
-
-        tscode = symbol_std_to_tus(code)
-        astype, list_date, delist_date = self.asset_lifetime(code)
-
-        tstart = pd.Timestamp(start)
-        tend = pd.Timestamp(end)
-
-        # 当前交易品种的有效交易日历
-        today = pd.Timestamp.today()
-        tstart = max([list_date, tstart])
-        tend = min([delist_date, tend, today])
-        if astype == 'E':
-            suspend = self.get_stock_suspend(code)
-            sus_dates = pd.to_datetime(suspend['suspend_date'])
-        else:
-            # create empty index
-            sus_dates = pd.DatetimeIndex([], freq='D')
-
-        m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
-        m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
-        trade_cal = self.trade_cal_index
-        trd_dates = trade_cal[(trade_cal >= m_start) & (trade_cal <= m_end)]
-
-        vdates = pd.date_range(m_start, m_end, freq='MS')
-        out = {}
-        for dd in vdates:
-            dtkey = dd.strftime(DATE_FORMAT)
-            if refresh == 0 or refresh == 1:
-                val = db.load(dtkey)
-                if val is not None:
-                    if refresh == 1:
-                        # price_data integrity check.
-                        dd_mend = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month)
-                        days_tcal = (trd_dates[(trd_dates >= dd) & (trd_dates <= dd_mend)])
-                        days_susp = (sus_dates[(sus_dates >= dd) & (sus_dates <= dd_mend)])
-                        if len(days_tcal) <= len(val) + len(days_susp):
-                            # 股票存在停牌半天的情况，也会被计入suspend列表
-                            # b_integrity = True
-                            out[dtkey] = val
-                            continue
-                        log.info('incomplete, reload-{}, {}, {}, {}'.format(dd, days_susp, days_tcal, val))
-                    else:
-                        out[dtkey] = val
-                        continue
-
-            start_raw = dd.strftime(DATE_FORMAT)
-            end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
-            data = ts.pro_api.adj_factor(tscode, start_date=start_raw, end_date=end_raw)
-            if data is None:
-                # create empyt dataframe for nan data.
-                out[dtkey] = pd.DataFrame(columns=EQUITY_DAILY_PRICE_META['columns'])
-            elif data.empty:
-                out[dtkey] = pd.DataFrame(columns=EQUITY_DAILY_PRICE_META['columns'])
-            else:
-                out[dtkey] = data.reindex(columns=EQUITY_DAILY_PRICE_META['columns'])
-            db.save(dtkey, out[dtkey])
-
-        all_out = pd.concat(out)
-        all_out = all_out.set_index('trade_date', drop=True)
-        all_out = all_out.sort_index(ascending=True)
-        all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
-        all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
-        return all_out
 
 
 greader = None
