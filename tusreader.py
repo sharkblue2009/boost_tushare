@@ -1,4 +1,4 @@
-from trading_calendars import get_calendar
+# from trading_calendars import get_calendar
 
 import tushare as ts
 from cntus._passwd import TUS_TOKEN
@@ -63,11 +63,19 @@ def symbol_std_to_tus(symbol: str):
 
 class TusReader(object):
 
-    def __init__(self):
-        self.calendar = get_calendar('XSHG')
+    def __init__(self, tus_last_date=None):
+        """
+
+        :param tus_last_date: Tushare last date with data available,
+                            we assume yesterday's data is available in today.
+        """
+        # self.calendar = get_calendar('XSHG')
         ts.set_token(TUS_TOKEN)
         self.pro_api = ts.pro_api()
         self.master_db = XCacheDB()
+
+        if tus_last_date is None:
+            self.tus_last_date = pd.Timestamp.today() - pd.Timedelta(days=1)
 
     @lazyval
     def trade_cal(self):
@@ -121,7 +129,60 @@ class TusReader(object):
         start_date, end_date = pd.Timestamp(start_date), pd.Timestamp(end_date)
         return astype, start_date, end_date
 
-    def get_price_daily(self, code, start: str, end: str, refresh=1):
+    def gen_keys_monthly(self, start_dt, end_dt, limit_start, limit_end):
+
+        # 当前交易品种的有效交易日历
+        today = self.tus_last_date
+        tstart = max([limit_start, start_dt])
+        tend = min([limit_end, end_dt, today])
+
+        m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
+        m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
+
+        vdates = pd.date_range(m_start, m_end, freq='MS')
+        return vdates
+
+    def gen_keys_daily(self, start_dt, end_dt, limit_start, limit_end):
+
+        # 当前交易品种的有效交易日历
+        today = self.tus_last_date
+        tstart = max([limit_start, start_dt])
+        tend = min([limit_end, end_dt, today])
+
+        trade_cal = self.trade_cal_index
+        vdates = trade_cal[(trade_cal >= tstart) & (trade_cal <= tend)]
+        return vdates
+
+    def integrity_check_monthly(self, code, month_start, val, astype='E'):
+        """
+        数据完整性检查
+        :param code:
+        :param month_start: Timestamp, Month start
+        :param val:
+        :return:
+        """
+        try:
+            suspend = self.get_stock_suspend(code)
+            sus_dates = pd.to_datetime(suspend['suspend_date'])
+        except Exception as e:
+            # create empty index
+            sus_dates = pd.DatetimeIndex([], freq='D')
+
+        trd_dates = self.trade_cal_index
+        m_end = pd.Timestamp(year=month_start.year, month=month_start.month, day=month_start.days_in_month)
+        m_end = min(self.tus_last_date, m_end)
+        days_tcal = (trd_dates[(trd_dates >= month_start) & (trd_dates <= m_end)])
+        days_susp = (sus_dates[(sus_dates >= month_start) & (sus_dates <= m_end)])
+
+        if len(days_tcal) <= len(val) + len(days_susp):
+            # 股票存在停牌半天的情况，也会被计入suspend列表
+            return True
+
+        log.info('incomplete-{}-{}, {}, '.format(code, month_start, val))
+
+        return False
+
+    def get_price_daily(self, code, start: str, end: str, refresh=0):
         """
         按月存取股票的日线数据
         1. 如当月停牌无交易，则存入空数据(或0)
@@ -146,25 +207,10 @@ class TusReader(object):
 
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
+        vdates = self.gen_keys_monthly(tstart, tend, list_date, delist_date)
 
-        # 当前交易品种的有效交易日历
-        today = pd.Timestamp.today()
-        tstart = max([list_date, tstart])
-        tend = min([delist_date, tend, today])
-        if astype == 'E':
-            suspend = self.get_stock_suspend(code)
-            sus_dates = pd.to_datetime(suspend['suspend_date'])
-        else:
-            # create empty index
-            sus_dates = pd.DatetimeIndex([], freq='D')
-
-        m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
-        m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
-        trade_cal = self.trade_cal_index
-        trd_dates = trade_cal[(trade_cal >= m_start) & (trade_cal <= m_end)]
-
-        vdates = pd.date_range(m_start, m_end, freq='MS')
         out = {}
+        fcols = EQUITY_DAILY_PRICE_META['columns']
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
             if refresh == 0 or refresh == 1:
@@ -172,15 +218,9 @@ class TusReader(object):
                 if val is not None:
                     if refresh == 1:
                         # price_data integrity check.
-                        dd_mend = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month)
-                        days_tcal = (trd_dates[(trd_dates >= dd) & (trd_dates <= dd_mend)])
-                        days_susp = (sus_dates[(sus_dates >= dd) & (sus_dates <= dd_mend)])
-                        if len(days_tcal) <= len(val) + len(days_susp):
-                            # 股票存在停牌半天的情况，也会被计入suspend列表
-                            # b_integrity = True
+                        if self.integrity_check_monthly(code, dd, val, astype):
                             out[dtkey] = val
                             continue
-                        log.info('daily, reload-{}-{}, {}, {}, {}'.format(code, dd, days_susp, days_tcal, val))
                     else:
                         out[dtkey] = val
                         continue
@@ -190,12 +230,12 @@ class TusReader(object):
             data = ts.pro_bar(tscode, asset=astype, start_date=start_raw, end_date=end_raw, freq='D')
             if data is None:
                 # create empyt dataframe for nan data.
-                out[dtkey] = pd.DataFrame(columns=EQUITY_DAILY_PRICE_META['columns'])
+                out[dtkey] = pd.DataFrame(columns=fcols)
             elif data.empty:
-                out[dtkey] = pd.DataFrame(columns=EQUITY_DAILY_PRICE_META['columns'])
+                out[dtkey] = pd.DataFrame(columns=fcols)
             else:
                 data = data.rename(columns={'vol': 'volume'})
-                out[dtkey] = data.reindex(columns=EQUITY_DAILY_PRICE_META['columns'])
+                out[dtkey] = data.reindex(columns=fcols)
             db.save(dtkey, out[dtkey])
 
         all_out = pd.concat(out)
@@ -222,24 +262,9 @@ class TusReader(object):
 
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
+        vdates = self.gen_keys_monthly(tstart, tend, list_date, delist_date)
 
-        # 当前交易品种的有效交易日历
-        today = pd.Timestamp.today()
-        tstart = max([list_date, tstart])
-        tend = min([delist_date, tend, today])
-        if astype == 'E':
-            suspend = self.get_stock_suspend(code)
-            sus_dates = pd.to_datetime(suspend['suspend_date'])
-        else:
-            # create empty index
-            sus_dates = pd.DatetimeIndex([], freq='D')
-
-        m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
-        m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
-        trade_cal = self.trade_cal_index
-        trd_dates = trade_cal[(trade_cal >= m_start) & (trade_cal <= m_end)]
-
-        vdates = pd.date_range(m_start, m_end, freq='MS')
+        fcols = STOCK_DAILY_INFO_META['columns']
         out = {}
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
@@ -248,14 +273,9 @@ class TusReader(object):
                 if val is not None:
                     if refresh == 1:
                         # price_data integrity check.
-                        dd_mend = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month)
-                        days_tcal = (trd_dates[(trd_dates >= dd) & (trd_dates <= dd_mend)])
-                        days_susp = (sus_dates[(sus_dates >= dd) & (sus_dates <= dd_mend)])
-                        if len(days_tcal) <= len(val) + len(days_susp):
-                            # 股票存在停牌半天的情况，也会被计入suspend列表
+                        if self.integrity_check_monthly(code, dd, val, astype):
                             out[dtkey] = val
                             continue
-                        log.info('incomplete, reload-{}, {}, {}, {}'.format(dd, days_susp, days_tcal, val))
                     else:
                         out[dtkey] = val
                         continue
@@ -263,14 +283,14 @@ class TusReader(object):
             start_raw = dd.strftime(DATE_FORMAT)
             end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
             data = self.pro_api.daily_basic(ts_code=tscode, start_date=start_raw, end_date=end_raw,
-                                            fields=STOCK_DAILY_INFO_META['columns'])
+                                            fields=fcols)
             if data is None:
                 # create empyt dataframe for nan data.
-                out[dtkey] = pd.DataFrame(columns=STOCK_DAILY_INFO_META['columns'])
+                out[dtkey] = pd.DataFrame(columns=fcols)
             elif data.empty:
-                out[dtkey] = pd.DataFrame(columns=STOCK_DAILY_INFO_META['columns'])
+                out[dtkey] = pd.DataFrame(columns=fcols)
             else:
-                out[dtkey] = data.reindex(columns=STOCK_DAILY_INFO_META['columns'])
+                out[dtkey] = data.reindex(columns=fcols)
             db.save(dtkey, out[dtkey])
 
         all_out = pd.concat(out)
@@ -306,14 +326,7 @@ class TusReader(object):
 
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-
-        # 当前交易品种的有效交易日历
-        today = pd.Timestamp.today()
-        tstart = max([list_date, tstart])
-        tend = min([delist_date, tend, today])
-
-        trade_cal = self.trade_cal_index
-        vdates = trade_cal[(trade_cal >= tstart) & (trade_cal <= tend)]
+        vdates = self.gen_keys_daily(tstart, tend, list_date, delist_date)
 
         out = {}
         for dd in vdates:
@@ -323,7 +336,6 @@ class TusReader(object):
                 val = db.load(dtkey)
                 if val is not None:
                     if len(val) == 241:  # 数据完整
-                        # b_integrity = True
                         out[dtkey] = val
                         continue
 
