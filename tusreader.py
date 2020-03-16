@@ -7,58 +7,7 @@ from cntus.utils.memoize import lazyval
 
 from cntus.xcachedb import *
 from cntus.dbschema import *
-
-
-def symbol_tus_to_std(symbol: str):
-    stock, market = symbol.split('.')
-
-    if market == 'SH':
-        code = stock + '.XSHG'
-    elif market == 'SZ':
-        code = stock + '.XSHE'
-    else:
-        raise ValueError('Symbol error{}'.format(symbol))
-
-    return code
-
-
-def symbol_std_to_tus(symbol: str):
-    """
-    convert STD symbol string to Tushare format,
-    Tushare symbol format is like 000001.SZ, 000001.SH
-    :param symbol:
-    :return: tdx code,
-    """
-    stock, market = symbol.split('.')
-    if market == 'XSHG':
-        code = stock + '.SH'
-    elif market == 'XSHE':
-        code = stock + '.SZ'
-    else:
-        raise ValueError('Symbol error{}'.format(symbol))
-
-    return code
-
-
-# def find_closest_date(all_dates, dt, mode='backward'):
-#     """
-#
-#     :param all_dates:
-#     :param dt:
-#     :param mode:
-#     :return:
-#     """
-#     tt_all_dates = pd.to_datetime(all_dates, format='%Y%m%d')
-#     tt_dt = pd.Timestamp(dt)
-#     if mode == 'backward':
-#         valid = tt_all_dates[tt_all_dates <= tt_dt]
-#         if len(valid) > 0:
-#             return valid[-1].strftime('%Y%m%d')
-#     else:
-#         valid = tt_all_dates[tt_all_dates >= tt_dt]
-#         if len(valid) > 0:
-#             return valid[0].strftime('%Y%m%d')
-#     return None
+from cntus.utils.xctus_utils import *
 
 
 class TusReader(object):
@@ -94,6 +43,11 @@ class TusReader(object):
     @lazyval
     def trade_cal_index(self):
         return pd.to_datetime(self.trade_cal.tolist(), format='%Y%m%d')
+
+    @lazyval
+    def trade_cal_index_minutes(self):
+        return session_day_to_freq(self.trade_cal_index, freq='1Min')
+
 
     @lazyval
     def index_info(self):
@@ -399,16 +353,20 @@ class TusReader(object):
 
             start_raw = dd.strftime(DATETIME_FORMAT)
             end_raw = (dd + pd.Timedelta(hours=17)).strftime(DATETIME_FORMAT)
-
+            fcols = EQUITY_MINUTE_PRICE_META['columns']
             data = ts.pro_bar(tscode, asset=astype, start_date=start_raw, end_date=end_raw, freq='1min')
             if data is None:
                 # create empyt dataframe for nan data.
-                out[dtkey] = pd.DataFrame(columns=EQUITY_MINUTE_PRICE_META['columns'])
+                out[dtkey] = pd.DataFrame(columns=fcols)
             elif data.empty:
-                out[dtkey] = pd.DataFrame(columns=EQUITY_MINUTE_PRICE_META['columns'])
+                out[dtkey] = pd.DataFrame(columns=fcols)
             else:
                 data = data.rename(columns={'vol': 'volume'})
-                out[dtkey] = data.reindex(columns=EQUITY_MINUTE_PRICE_META['columns'])
+                out[dtkey] = data.reindex(columns=fcols)
+
+            if len(data) != 241:
+                log.info('unaligned:{}:{}-{}'.format(code, dtkey, len(data)))
+
             db.save(dtkey, out[dtkey])
 
         all_out = pd.concat(out)
@@ -658,16 +616,16 @@ if __name__ == '__main__':
     # df = reader.get_stock_xdxr('002465.XSHE', refresh=True)
     # df = reader.get_stock_xdxr('000002.XSHE', refresh=False)
 
-    df_day = reader.get_price_daily('002465.XSHE', '20150201', '20200207', refresh=1)
-    # df = reader.get_price_minute('002465.XSHE', '20150227', '20150227', refresh=1)
-    df = reader.get_stock_adjfactor('002465.XSHE', '20150201', '20200207', refresh=1)
-    df = df.reindex(df_day.index)
-    print(df_day['close']*df['adj_factor']/df['adj_factor'][-1])
+    df = reader.get_price_minute('000001.XSHE', '20150117', '20150227', refresh=1)
+    # df_day = reader.get_price_daily('002465.XSHE', '20150201', '20200207', refresh=1)
+    # df = reader.get_stock_adjfactor('002465.XSHE', '20150201', '20200207', refresh=1)
+    # df = df.reindex(df_day.index)
+    # print(df_day['close']*df['adj_factor']/df['adj_factor'][-1])
 
     # df = reader.get_stock_suspend('000002.XSHE', refresh=False)
     # df = reader.get_stock_daily_info('002465.XSHE', '20150201', '20200207', refresh=1)
 
-    # print(df)
+    print(df)
 
     # print(timeit.Timer(lambda: reader.get_stock_xdxr('002465.XSHE', refresh=True)).timeit(1))
     # print(timeit.Timer(lambda: reader.get_index_weight('399300.XSHE', '20200318', refresh=True)).timeit(1))
