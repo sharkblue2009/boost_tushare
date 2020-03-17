@@ -46,8 +46,7 @@ class TusReader(object):
 
     @lazyval
     def trade_cal_index_minutes(self):
-        return session_day_to_freq(self.trade_cal_index, freq='1Min')
-
+        return session_day_to_min_tus(self.trade_cal_index, freq='1Min')
 
     @lazyval
     def index_info(self):
@@ -194,8 +193,8 @@ class TusReader(object):
 
         all_out = pd.concat(out)
         all_out = all_out.set_index('trade_date', drop=True)
-        all_out = all_out.sort_index(ascending=True)
         all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
+        all_out = all_out.sort_index(ascending=True)
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
@@ -249,8 +248,8 @@ class TusReader(object):
 
         all_out = pd.concat(out)
         all_out = all_out.set_index('trade_date', drop=True)
-        all_out = all_out.sort_index(ascending=True)
         all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
+        all_out = all_out.sort_index(ascending=True)
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
@@ -307,12 +306,12 @@ class TusReader(object):
 
         all_out = pd.concat(out)
         all_out = all_out.set_index('trade_date', drop=True)
-        all_out = all_out.sort_index(ascending=True)
         all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
+        all_out = all_out.sort_index(ascending=True)
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
-    def get_price_minute(self, code, start, end, refresh=False):
+    def get_price_minute(self, code, start, end, refresh=0):
         """
         按日存取股票的分钟线数据
         1. 如当日停牌无交易，则存入空数据
@@ -364,15 +363,22 @@ class TusReader(object):
                 data = data.rename(columns={'vol': 'volume'})
                 out[dtkey] = data.reindex(columns=fcols)
 
-            if len(data) != 241:
-                log.info('unaligned:{}:{}-{}'.format(code, dtkey, len(data)))
-
             db.save(dtkey, out[dtkey])
 
         all_out = pd.concat(out)
         all_out = all_out.set_index('trade_time', drop=True)
-        all_out = all_out.sort_index(ascending=True)
         all_out.index = pd.to_datetime(all_out.index, format=DATETIME_FORMAT)
+        all_out = all_out.sort_index(ascending=True)
+
+        if (len(all_out) % 241) != 0:
+            # print('unaligned:{}:-{}'.format(code,  len(all_out)))
+            all_min_idx = self.trade_cal_index_minutes
+            tt_idx = all_min_idx[(all_min_idx >= tstart) & (all_min_idx <= (tend + pd.Timedelta(days=1)))]
+            # tt_idx = session_day_to_min_tus([dd], '1Min')
+            all_out = all_out.reindex(index=tt_idx)
+            all_out.index.name = 'trade_time'
+            # print('::{}'.format(len(all_out)))
+
         return all_out
 
     def get_stock_suspend(self, code, refresh=False):

@@ -1,6 +1,6 @@
 import pandas as pd
 
-def session_day_to_freq(day_sess, freq='1Min'):
+def session_day_to_min_tus(day_sess, freq='1Min', market_open=True):
     """
     Convert day based session to high frequency session
     :param day_sess:
@@ -12,9 +12,14 @@ def session_day_to_freq(day_sess, freq='1Min'):
     time_c = pd.Timedelta(hours=13, minutes=0)
     time_d = pd.Timedelta(hours=15, minutes=0)
 
+    if market_open:
+        sides = None
+    else:
+        sides = 'right'
+
     out_sess = None
     for x in day_sess:
-        ss1 = pd.date_range(start=x + time_a, end=x + time_b, freq=freq, closed='right')
+        ss1 = pd.date_range(start=x + time_a, end=x + time_b, freq=freq, closed=sides)
         if out_sess is None:
             out_sess = ss1
         else:
