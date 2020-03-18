@@ -550,7 +550,7 @@ class TusReader(object):
 
     def get_index_weight(self, index_symbol, date, refresh=False):
         """
-        tushare index_weight数据, 月初第一个交易日和月末最后一个交易日更新
+        tushare index_weight数据, 月初第一个交易日和月末最后一个交易日更新(20200318: 只有月末更新数据？)
         :param index_symbol:
         :param date:
         :param refresh:
@@ -566,7 +566,7 @@ class TusReader(object):
 
         trade_cal = self.trade_cal_index
         vdates = trade_cal[(trade_cal >= m_start) & (trade_cal <= m_end)]
-        dtkey = vdates[0]
+        dtkey = vdates[-1]
         dtkey = dtkey.strftime(DATE_FORMAT)
 
         if not refresh:
