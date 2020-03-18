@@ -15,6 +15,8 @@ class TusSdbs(Enum):
     SDB_DAILY_PRICE = 'ts:daily_price:'
     SDB_MINUTE_PRICE = 'ts:minute_price:'
     SDB_INDEX_WEIGHT = 'ts:index_weight:'
+    SDB_INDEX_CLASSIFY = 'ts:index_classify'
+    SDB_INDEX_MEMBER = 'ts:index_member'
     SDB_STOCK_DAILY_INFO = 'ts:stock_daily_info:'
     SDB_STOCK_SUSPEND = 'ts:stock_suspend'
     SDB_STOCK_FIN_INCOME = 'ts:stock_finance:income:'
@@ -30,6 +32,21 @@ ASSET_INFO_META = {
 
 INDEX_WEIGHT_META = {
     'columns': ['trade_date', 'con_code', 'weight'],
+}
+
+INDEX_CLASSIFY_META = {
+    'columns': ['index_code', 'industry_name', 'level'],
+}
+
+INDEX_MEMBER_META = {
+    'columns': ['index_code',
+                'index_name',
+                'con_code',
+                'con_name',
+                'in_date',
+                'out_date',
+                'is_new',
+                ],
 }
 
 STOCK_XDXR_META = {

@@ -1,23 +1,23 @@
-from tusreader import TusReader, symbol_std_to_tus, symbol_tus_to_std, get_tusreader
-from xcachedb import *
-from dbschema import *
+from cntus.utils.xctus_utils import symbol_std_to_tus, symbol_tus_to_std
+from cntus.xcachedb import *
+from cntus.dbschema import *
 
 
-class TusFinance(object):
+class TusFinanceInfo(object):
+    """
+    Finance information loader
     """
 
-    """
-
-    def __init__(self, reader):
-        self.reader = reader
-        self.master_db = reader.master_db
+    master_db = None
+    pro_api = None
+    tus_last_date = None
 
     def get_income(self, code, period, refresh=False):
         db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_FIN_INCOME.value + code),
                         KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_INCOME_META)
 
         tscode = symbol_std_to_tus(code)
-        astype, list_date, delist_date = self.reader.asset_lifetime(code)
+        astype, list_date, delist_date = self.asset_lifetime(code)
 
         tpp1 = pd.Timestamp(period)
 
@@ -38,26 +38,18 @@ class TusFinance(object):
                 return val
 
         fcols = STOCK_FIN_INCOME_META['columns']
-        data = self.reader.pro_api.income(ts_code=tscode, period=period,
+        data = self.pro_api.income(ts_code=tscode, period=period,
                                           fields=fcols)
-        if data is None:
-            # create empyt dataframe for nan data.
-            info_to_db = pd.DataFrame(columns=fcols)
-        elif data.empty:
-            info_to_db = pd.DataFrame(columns=fcols)
-        else:
-            info_to_db = data.reindex(columns=fcols)
+        out = db.save(dtkey, data)
 
-        db.save(dtkey, info_to_db)
-
-        return info_to_db
+        return out
 
     def get_balancesheet(self, code, period, refresh=False):
         db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_FIN_BALANCE.value + code),
                         KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_BALANCE_META)
 
         tscode = symbol_std_to_tus(code)
-        astype, list_date, delist_date = self.reader.asset_lifetime(code)
+        astype, list_date, delist_date = self.asset_lifetime(code)
 
         tpp1 = pd.Timestamp(period)
 
@@ -78,26 +70,19 @@ class TusFinance(object):
                 return val
 
         fcols = STOCK_FIN_BALANCE_META['columns']
-        data = self.reader.pro_api.balancesheet(ts_code=tscode, period=period,
+        data = self.pro_api.balancesheet(ts_code=tscode, period=period,
                                                 fields=fcols)
-        if data is None:
-            # create empyt dataframe for nan data.
-            info_to_db = pd.DataFrame(columns=fcols)
-        elif data.empty:
-            info_to_db = pd.DataFrame(columns=fcols)
-        else:
-            info_to_db = data.reindex(columns=fcols)
 
-        db.save(dtkey, info_to_db)
+        out = db.save(dtkey, data)
 
-        return info_to_db
+        return out
 
     def get_cashflow(self, code, period, refresh=False):
         db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_FIN_CASHFLOW.value + code),
                         KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_CASHFLOW_META)
 
         tscode = symbol_std_to_tus(code)
-        astype, list_date, delist_date = self.reader.asset_lifetime(code)
+        astype, list_date, delist_date = self.asset_lifetime(code)
 
         tpp1 = pd.Timestamp(period)
 
@@ -118,19 +103,12 @@ class TusFinance(object):
                 return val
 
         fcols = STOCK_FIN_CASHFLOW_META['columns']
-        data = self.reader.pro_api.cashflow(ts_code=tscode, period=period,
+        data = self.pro_api.cashflow(ts_code=tscode, period=period,
                                                 fields=fcols)
-        if data is None:
-            # create empyt dataframe for nan data.
-            info_to_db = pd.DataFrame(columns=fcols)
-        elif data.empty:
-            info_to_db = pd.DataFrame(columns=fcols)
-        else:
-            info_to_db = data.reindex(columns=fcols)
 
-        db.save(dtkey, info_to_db)
+        out = db.save(dtkey, data)
 
-        return info_to_db
+        return out
 
     def get_forcast(self, code, period):
         pass
@@ -143,7 +121,7 @@ class TusFinance(object):
                         KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_INDICATOR_META)
 
         tscode = symbol_std_to_tus(code)
-        astype, list_date, delist_date = self.reader.asset_lifetime(code)
+        astype, list_date, delist_date = self.asset_lifetime(code)
 
         tpp1 = pd.Timestamp(period)
 
@@ -164,51 +142,10 @@ class TusFinance(object):
                 return val
 
         fcols = STOCK_FIN_INDICATOR_META['columns']
-        data = self.reader.pro_api.fina_indicator(ts_code=tscode, period=period,
+        data = self.pro_api.fina_indicator(ts_code=tscode, period=period,
                                                 fields=fcols)
-        if data is None:
-            # create empyt dataframe for nan data.
-            info_to_db = pd.DataFrame(columns=fcols)
-        elif data.empty:
-            info_to_db = pd.DataFrame(columns=fcols)
-        else:
-            info_to_db = data.reindex(columns=fcols)
 
-        db.save(dtkey, info_to_db)
+        out = db.save(dtkey, data)
 
-        return info_to_db
+        return out
 
-gfinreader = None
-
-def get_tusfinreader():
-    global gfinreader
-    if gfinreader is None:
-        gfinreader = TusFinance(reader=get_tusreader())
-    return gfinreader
-
-if __name__ == '__main__':
-    import logbook, sys
-    import timeit
-    from tusreader import TusReader
-
-    zipline_logging = logbook.NestedSetup([
-        logbook.NullHandler(),
-        logbook.StreamHandler(sys.stdout, level=logbook.INFO),
-        logbook.StreamHandler(sys.stderr, level=logbook.ERROR),
-    ])
-    zipline_logging.push_application()
-
-    reader = TusReader()
-    fin_reader = TusFinance(reader)
-
-    df = fin_reader.get_income('002465.XSHE', '20150630', refresh=True)
-
-    print(df)
-    df = fin_reader.get_balancesheet('002465.XSHE', '20150630')
-    print(df)
-    df = fin_reader.get_cashflow('002465.XSHE', '20150630')
-    print(df)
-    df = fin_reader.get_fina_indicator('002465.XSHE', '20150630')
-    print(df)
-    # print(timeit.Timer(lambda: fin_reader.get_income('002465.XSHE', '20150630', refresh=True)).timeit(1))
-    # print(timeit.Timer(lambda: fin_reader.get_income('002465.XSHE', '20150630')).timeit(1))

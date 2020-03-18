@@ -134,35 +134,42 @@ class XcAccessor(object):
         return real_key
 
     def to_val_in(self, val):
-        """"""
+        """
+        format val which need to database.
+        :param val: value to be save
+        :return: data to DB, data to APP.
+        """
         if self.tpval == KVTYPE.TPV_DFRAME:
             if isinstance(val, pd.DataFrame):
                 if val.empty:
-                    return NOT_EXIST
-                return pickle.dumps(val.values)
+                    return NOT_EXIST, pd.DataFrame(columns=self.metadata['columns'])
+                if self.metadata:
+                    val = val.reindex(columns=self.metadata['columns'])
+                return pickle.dumps(val.values), val
             else:
-                return None
+                return None, pd.DataFrame(columns=self.metadata['columns'])
         elif self.tpval == KVTYPE.TPV_SER_ROW:
             if isinstance(val, pd.Series):
                 if val.empty:
-                    return NOT_EXIST
-                return pickle.dumps(val.values)
+                    return NOT_EXIST, pd.Series(index=self.metadata['columns'])
+                if self.metadata:
+                    val = val.reindex(index=self.metadata['columns'])
+                return pickle.dumps(val.values), val
         elif self.tpval == KVTYPE.TPV_SER_COL:
             if isinstance(val, pd.Series):
                 if val.empty:
-                    return NOT_EXIST
-                return pickle.dumps(val.values)
-
+                    return NOT_EXIST, pd.Series()
+                return pickle.dumps(val.values), val
         elif self.tpval == KVTYPE.TPV_NARR_1D or \
                 self.tpval == KVTYPE.TPV_NARR_2D:
             if isinstance(val, np.ndarray):
                 if val.size == 0:
-                    return NOT_EXIST
-                return pickle.dumps(val)
+                    return NOT_EXIST, val
+                return pickle.dumps(val), val
         else:
-            return force_bytes(val)
+            return force_bytes(val), val
 
-        return None
+        return None, None
 
     def to_val_out(self, val):
 
@@ -207,9 +214,10 @@ class XcAccessor(object):
     def save(self, key, val):
         """"""
         key = self.to_db_key(key)
-        val = self.to_val_in(val)
-        if key and val:
-            self.db.put(key, val)
+        dbval, appval = self.to_val_in(val)
+        if key and dbval:
+            self.db.put(key, dbval)
+        return appval
 
     def remove(self, key):
         """"""
