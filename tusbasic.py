@@ -281,7 +281,7 @@ class TusBasicInfo(object):
             if val is not None:
                 return val
 
-        info = self.pro_api.index_member(index_code)
+        info = self.pro_api.index_member(index_code=index_code, fields=INDEX_MEMBER_META['columns'])
         if not info.empty:
             info.loc[:, 'con_code'] = info['con_code'].apply(symbol_tus_to_std)
             out = db.save(lkey, info)
