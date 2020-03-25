@@ -19,6 +19,7 @@ class TusSdbs(Enum):
     SDB_INDEX_MEMBER = 'ts:index_member'
     SDB_STOCK_DAILY_INFO = 'ts:stock_daily_info:'
     SDB_STOCK_SUSPEND = 'ts:stock_suspend'
+    SDB_STOCK_SUSPEND_D = 'ts:stock_suspend_d:'
     SDB_STOCK_FIN_INCOME = 'ts:stock_finance:income:'
     SDB_STOCK_FIN_BALANCE = 'ts:stock_finance:balance:'
     SDB_STOCK_FIN_CASHFLOW = 'ts:stock_finance:cashflow:'
@@ -128,6 +129,14 @@ STOCK_SUSPEND_META = {
         # 'ann_date',
         'suspend_reason',
         # 'reason_type',
+    ]
+}
+
+STOCK_SUSPEND_D_META = {
+    'columns': [
+        'trade_date',
+        'suspend_timing',
+        'suspend_type',
     ]
 }
 

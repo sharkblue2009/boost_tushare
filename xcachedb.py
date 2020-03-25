@@ -10,7 +10,7 @@ import plyvel
 
 log = Logger('tusdb')
 
-LEVEL_DB_NAME = 'TUS_DB'
+LEVEL_DB_NAME = 'D:\Database\stock_db\TUS_DB'
 LEVEL_DBS = {}
 
 DATE_FORMAT = '%Y%m%d'

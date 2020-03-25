@@ -55,24 +55,25 @@ if __name__ == '__main__':
 
     reader = TusReader()
 
-    df = reader.get_index_info()
-    df = reader.get_stock_info()
-    df = reader.get_fund_info()
-    df = reader.trade_cal
-    df = reader.get_index_weight('399300.XSHE', '20200318', refresh=False)
-    df = reader.get_stock_xdxr('002465.XSHE', refresh=True)
-    df = reader.get_stock_xdxr('000002.XSHE', refresh=False)
+    # df = reader.get_index_info()
+    # df = reader.get_stock_info()
+    # df = reader.get_fund_info()
+    # df = reader.trade_cal
+    # df = reader.get_index_weight('399300.XSHE', '20200318', refresh=False)
+    # df = reader.get_stock_xdxr('002465.XSHE', refresh=True)
+    # df = reader.get_stock_xdxr('000002.XSHE', refresh=False)
+    #
+    # df = reader.get_price_minute('000001.XSHE', '20150117', '20150227', refresh=0)
+    # df = reader.get_price_minute('002465.XSHE', '20150117', '20150227', refresh=0)
+    # df_day = reader.get_price_daily('002465.XSHE', '20150201', '20200207', refresh=1)
+    # df = reader.get_stock_adjfactor('002465.XSHE', '20150201', '20200207', refresh=1)
+    # # df = df.reindex(df_day.index)
+    # # print(df_day['close']*df['adj_factor']/df['adj_factor'][-1])
+    #
+    # df = reader.get_stock_suspend('000002.XSHE', refresh=False)
+    # df = reader.get_stock_daily_info('002465.XSHE', '20150201', '20200207', refresh=1)
 
-    df = reader.get_price_minute('000001.XSHE', '20150117', '20150227', refresh=0)
-    df = reader.get_price_minute('002465.XSHE', '20150117', '20150227', refresh=0)
-    df_day = reader.get_price_daily('002465.XSHE', '20150201', '20200207', refresh=1)
-    df = reader.get_stock_adjfactor('002465.XSHE', '20150201', '20200207', refresh=1)
-    # df = df.reindex(df_day.index)
-    # print(df_day['close']*df['adj_factor']/df['adj_factor'][-1])
-
-    df = reader.get_stock_suspend('000002.XSHE', refresh=False)
-    df = reader.get_stock_daily_info('002465.XSHE', '20150201', '20200207', refresh=1)
-
+    df = reader.get_stock_suspend_d('000155.XSHE', refresh=False)
     print(df)
 
     # print(timeit.Timer(lambda: reader.get_stock_xdxr('002465.XSHE', refresh=True)).timeit(1))

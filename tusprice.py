@@ -21,16 +21,22 @@ class TusPriceInfo(object):
         :param val:
         :return:
         """
-        try:
-            suspend = self.get_stock_suspend(code)
-            sus_dates = pd.to_datetime(suspend['suspend_date'])
-        except Exception as e:
-            # create empty index
-            sus_dates = pd.DatetimeIndex([], freq='D')
-
-        trd_dates = self.trade_cal_index
         m_end = pd.Timestamp(year=month_start.year, month=month_start.month, day=month_start.days_in_month)
         m_end = min(self.tus_last_date, m_end)
+
+        # try:
+        suspend = self.get_stock_suspend_d(code, month_start.strftime(DATE_FORMAT),
+                                           m_end.strftime(DATE_FORMAT), refresh=False)
+        suspend_v = suspend.loc[(suspend['suspend_type'] == 'S') & (suspend['suspend_timing'].isna()), :]
+        if not suspend_v.empty:
+            sus_dates = pd.to_datetime(suspend_v.index)
+        else:
+            sus_dates = pd.DatetimeIndex([], freq='D')
+        # except Exception as e:
+        #     # create empty index
+        #     sus_dates = pd.DatetimeIndex([], freq='D')
+
+        trd_dates = self.trade_cal_index
         days_tcal = (trd_dates[(trd_dates >= month_start) & (trd_dates <= m_end)])
         days_susp = (sus_dates[(sus_dates >= month_start) & (sus_dates <= m_end)])
 
@@ -38,7 +44,8 @@ class TusPriceInfo(object):
             # 股票存在停牌半天的情况，也会被计入suspend列表
             return True
 
-        log.info('incomplete-{}-{}, {}, '.format(code, month_start, val))
+        log.info('incomplete: {}-{}, {}-{}, '.format(code, month_start, len(days_tcal), len(days_susp)))
+        log.info('{}'.format(val['trade_date']))
 
         return False
 
@@ -215,7 +222,7 @@ class TusPriceInfo(object):
         :param refresh:
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_DAILY_PRICE.value + code),
+        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code),
                         KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
 
         tscode = symbol_std_to_tus(code)
@@ -282,6 +289,53 @@ class TusPriceInfo(object):
         info = self.pro_api.suspend(ts_code=tscode)
         out = db.save(code, info)
         return out
+
+    def get_stock_suspend_d(self, code, start=None, end=None, refresh=False):
+        """
+        股票停复牌信息
+        注： 股票存在停牌半天的情况。但也会在suspend列表中体现
+        :param code:
+        :param refresh:
+        :return:
+        """
+        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_SUSPEND_D.value + code),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_SUSPEND_D_META)
+
+        tscode = symbol_std_to_tus(code)
+        astype, list_date, delist_date = self.asset_lifetime(code)
+
+        if start is None:
+            tstart = pd.Timestamp(list_date)
+        else:
+            tstart = pd.Timestamp(start)
+        if end is None:
+            tend = pd.Timestamp(delist_date)
+        else:
+            tend = pd.Timestamp(end)
+
+        vdates = self.gen_keys_monthly(tstart, tend, list_date, delist_date)
+
+        fcols = STOCK_SUSPEND_D_META['columns']
+        out = {}
+        for dd in vdates:
+            dtkey = dd.strftime(DATE_FORMAT)
+            if not refresh:
+                val = db.load(dtkey)
+                if val is not None:
+                    out[dtkey] = val
+                    continue
+
+            start_raw = dd.strftime(DATE_FORMAT)
+            end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
+            data = self.pro_api.suspend_d(ts_code=tscode, start_date=start_raw, end_date=end_raw, fields=fcols)
+            out[dtkey] = db.save(dtkey, data)
+
+        all_out = pd.concat(out)
+        all_out = all_out.set_index('trade_date', drop=True)
+        all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
+        all_out = all_out.sort_index(ascending=True)
+        all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
+        return all_out
 
     def get_stock_xdxr(self, code, refresh=False):
         """

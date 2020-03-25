@@ -12,20 +12,22 @@ class TusBasicInfo(object):
     pro_api = None
     tus_last_date = None
 
-    @lazyval
-    def trade_cal(self):
+    def get_trade_cal(self, refresh=False):
         db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_TRADE_CALENDAR.value),
                         KVTYPE.TPK_RAW, KVTYPE.TPV_SER_COL, None)
-        val = db.load('trade_cal')
-        if val is not None:
-            return val
+        if not refresh:
+            val = db.load('trade_cal')
+            if val is not None:
+                return val
 
-        # log.info('update...')
         info = self.pro_api.trade_cal()
         info_to_db = info[info['is_open'] == 1].loc[:, 'cal_date']
         db.save('trade_cal', info_to_db)
         return info_to_db
 
+    @lazyval
+    def trade_cal(self):
+        return self.get_trade_cal()
     @lazyval
     def trade_cal_index(self):
         return pd.to_datetime(self.trade_cal.tolist(), format='%Y%m%d')
