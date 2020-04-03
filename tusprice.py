@@ -3,7 +3,7 @@ from cntus.xcachedb import *
 from cntus.dbschema import *
 import tushare as ts
 import pandas as pd
-
+import time
 
 class TusPriceInfo(object):
     """
@@ -13,43 +13,7 @@ class TusPriceInfo(object):
     pro_api = None
     basic_info = None
 
-    def integrity_check_monthly(self, code, month_start, val, astype='E'):
-        """
-        数据完整性检查
-        :param code:
-        :param month_start: Timestamp, Month start
-        :param val:
-        :return:
-        """
-        m_end = pd.Timestamp(year=month_start.year, month=month_start.month, day=month_start.days_in_month)
-        m_end = min(self.tus_last_date, m_end)
-
-        # try:
-        suspend = self.get_stock_suspend_d(code, month_start.strftime(DATE_FORMAT),
-                                           m_end.strftime(DATE_FORMAT), refresh=False)
-        suspend_v = suspend.loc[(suspend['suspend_type'] == 'S') & (suspend['suspend_timing'].isna()), :]
-        if not suspend_v.empty:
-            sus_dates = pd.to_datetime(suspend_v.index)
-        else:
-            sus_dates = pd.DatetimeIndex([], freq='D')
-        # except Exception as e:
-        #     # create empty index
-        #     sus_dates = pd.DatetimeIndex([], freq='D')
-
-        trd_dates = self.trade_cal_index
-        days_tcal = (trd_dates[(trd_dates >= month_start) & (trd_dates <= m_end)])
-        days_susp = (sus_dates[(sus_dates >= month_start) & (sus_dates <= m_end)])
-
-        if len(days_tcal) <= len(val) + len(days_susp):
-            # 股票存在停牌半天的情况，也会被计入suspend列表
-            return True
-
-        log.info('incomplete: {}-{}, {}-{}, '.format(code, month_start, len(days_tcal), len(days_susp)))
-        log.info('{}'.format(val['trade_date']))
-
-        return False
-
-    def get_price_daily(self, code, start: str, end: str, refresh=0):
+    def get_price_daily(self, code, start: str, end: str, refresh=False):
         """
         按月存取股票的日线数据
         1. 如当月停牌无交易，则存入空数据(或0)
@@ -79,17 +43,11 @@ class TusPriceInfo(object):
         out = {}
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
-            if refresh == 0 or refresh == 1:
+            if not refresh:
                 val = db.load(dtkey)
                 if val is not None:
-                    if refresh == 1:
-                        # price_data integrity check.
-                        if self.integrity_check_monthly(code, dd, val, astype):
-                            out[dtkey] = val
-                            continue
-                    else:
-                        out[dtkey] = val
-                        continue
+                    out[dtkey] = val
+                    continue
 
             start_raw = dd.strftime(DATE_FORMAT)
             end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
@@ -105,7 +63,7 @@ class TusPriceInfo(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
-    def get_stock_daily_info(self, code, start, end, refresh=0):
+    def get_stock_daily_info(self, code, start, end, refresh=False):
         """
         Get stock daily information.
         :param code:
@@ -128,17 +86,11 @@ class TusPriceInfo(object):
         out = {}
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
-            if refresh == 0 or refresh == 1:
+            if not refresh:
                 val = db.load(dtkey)
                 if val is not None:
-                    if refresh == 1:
-                        # price_data integrity check.
-                        if self.integrity_check_monthly(code, dd, val, astype):
-                            out[dtkey] = val
-                            continue
-                    else:
-                        out[dtkey] = val
-                        continue
+                    out[dtkey] = val
+                    continue
 
             start_raw = dd.strftime(DATE_FORMAT)
             end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
@@ -153,7 +105,7 @@ class TusPriceInfo(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
-    def get_stock_adjfactor(self, code, start: str, end: str, refresh=0):
+    def get_stock_adjfactor(self, code, start: str, end: str, refresh=False):
         """
         按月存取股票的日线数据
         前复权:
@@ -180,17 +132,11 @@ class TusPriceInfo(object):
         out = {}
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
-            if refresh == 0 or refresh == 1:
+            if not refresh:
                 val = db.load(dtkey)
                 if val is not None:
-                    if refresh == 1:
-                        # price_data integrity check.
-                        if self.integrity_check_monthly(code, dd, val, astype):
-                            out[dtkey] = val
-                            continue
-                    else:
-                        out[dtkey] = val
-                        continue
+                    out[dtkey] = val
+                    continue
 
             start_raw = dd.strftime(DATE_FORMAT)
             end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
@@ -204,7 +150,7 @@ class TusPriceInfo(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
-    def get_price_minute(self, code, start, end, refresh=0):
+    def get_price_minute(self, code, start, end, refresh=False):
         """
         按日存取股票的分钟线数据
         1. 如当日停牌无交易，则存入空数据
@@ -235,13 +181,12 @@ class TusPriceInfo(object):
         out = {}
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
-            if refresh == 0 or refresh == 1:
+            if not refresh:
                 # print(dd)
                 val = db.load(dtkey)
                 if val is not None:
-                    if len(val) == 241:  # 数据完整
-                        out[dtkey] = val
-                        continue
+                    out[dtkey] = val
+                    continue
 
             start_raw = dd.strftime(DATETIME_FORMAT)
             end_raw = (dd + pd.Timedelta(hours=17)).strftime(DATETIME_FORMAT)
@@ -249,6 +194,9 @@ class TusPriceInfo(object):
             data = ts.pro_bar(tscode, asset=astype, start_date=start_raw, end_date=end_raw, freq='1min')
             if data is not None:
                 data = data.rename(columns={'vol': 'volume'})
+                # convert %Y-%m-%d %H:%M:%S to %Y%m%d %H:%M:%S
+                data['trade_time'] = data['trade_time'].apply(lambda x: x.replace('-', ''))
+
             out[dtkey] = db.save(dtkey, data)
 
         all_out = pd.concat(out)
@@ -258,7 +206,7 @@ class TusPriceInfo(object):
 
         if (len(all_out) % 241) != 0:
             # Very slow
-            # print('unaligned:{}:-{}'.format(code,  len(all_out)))
+            print('unaligned:{}:-{}'.format(code,  len(all_out)))
             # all_min_idx = self.trade_cal_index_minutes
             # tt_idx = all_min_idx[(all_min_idx >= tstart) & (all_min_idx <= (tend + pd.Timedelta(days=1)))]
             tt_idx = session_day_to_min_tus([dd], '1Min')
@@ -327,14 +275,19 @@ class TusPriceInfo(object):
 
             start_raw = dd.strftime(DATE_FORMAT)
             end_raw = pd.Timestamp(year=dd.year, month=dd.month, day=dd.days_in_month).strftime(DATE_FORMAT)
+            self.ts_token.block_consume(1)
             data = self.pro_api.suspend_d(ts_code=tscode, start_date=start_raw, end_date=end_raw, fields=fcols)
             out[dtkey] = db.save(dtkey, data)
 
-        all_out = pd.concat(out)
-        all_out = all_out.set_index('trade_date', drop=True)
-        all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
-        all_out = all_out.sort_index(ascending=True)
-        all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
+        try:
+            all_out = pd.concat(out)
+            all_out = all_out.set_index('trade_date', drop=True)
+            all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
+            all_out = all_out.sort_index(ascending=True)
+            all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
+        except:
+            all_out = None
+
         return all_out
 
     def get_stock_xdxr(self, code, refresh=False):

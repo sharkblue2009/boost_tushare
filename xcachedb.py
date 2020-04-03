@@ -16,6 +16,7 @@ LEVEL_DBS = {}
 DATE_FORMAT = '%Y%m%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
+
 def force_bytes(s):
     if isinstance(s, str):
         return s.encode()
@@ -28,6 +29,20 @@ def force_string(s):
         return s.decode()
     else:
         return s
+
+
+def comp_timestamp(a, b):
+    try:
+        tsa = pd.Timestamp(a)
+        tsb = pd.Timestamp(b)
+        if tsa > tsb:
+            return 1
+        if tsa < tsb:
+            return -1
+        else:
+            return 0
+    except:
+        return 0
 
 
 class XCacheDB(object):
@@ -232,9 +247,9 @@ class XcAccessor(object):
 
     def get_key_range(self):
         if self.tpkey == KVTYPE.TPK_DATE or self.tpkey == KVTYPE.TPK_DATE:
-            iter = self.db.iterator(include_value=False)
-            start = force_string(iter.next())
-            end = force_string(iter.seek_to_stop().prev())
+            it1 = self.db.iterator(include_value=False, include_stop=True)
+            start = force_string(next(it1))
+            end = force_string(it1.seek_to_stop().prev())
             return (start, end)
         else:
             return None
