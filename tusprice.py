@@ -157,7 +157,7 @@ class TusPriceInfo(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
-    def get_price_minute(self, code, start, end, refresh=False):
+    def get_price_minute(self, code, start, end, freq='1min',refresh=False):
         """
         按日存取股票的分钟线数据
         1. 如当日停牌无交易，则存入空数据
@@ -175,8 +175,15 @@ class TusPriceInfo(object):
         :param refresh:
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
+        if freq not in ['1min', '5min', '15min', '30min', '60min', '120m']:
+            return None
+
+        if freq == '1min':
+            db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code),
+                            KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
+        else:
+            db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
+                            KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
 
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
@@ -200,7 +207,7 @@ class TusPriceInfo(object):
             start_raw = dd.strftime(DATETIME_FORMAT)
             end_raw = (dd + pd.Timedelta(hours=17)).strftime(DATETIME_FORMAT)
             # fcols = EQUITY_MINUTE_PRICE_META['columns']
-            data = ts.pro_bar(tscode, asset=astype, start_date=start_raw, end_date=end_raw, freq='1min')
+            data = ts.pro_bar(tscode, asset=astype, start_date=start_raw, end_date=end_raw, freq=freq)
             if data is not None:
                 data = data.rename(columns={'vol': 'volume'})
                 # convert %Y-%m-%d %H:%M:%S to %Y%m%d %H:%M:%S
@@ -213,15 +220,15 @@ class TusPriceInfo(object):
         all_out.index = pd.to_datetime(all_out.index, format=DATETIME_FORMAT)
         all_out = all_out.sort_index(ascending=True)
 
-        if (len(all_out) % 241) != 0:
-            # Very slow
-            print('unaligned:{}:-{}'.format(code, len(all_out)))
-            # all_min_idx = self.trade_cal_index_minutes
-            # tt_idx = all_min_idx[(all_min_idx >= tstart) & (all_min_idx <= (tend + pd.Timedelta(days=1)))]
-            tt_idx = session_day_to_min_tus([dd], '1Min')
-            all_out = all_out.reindex(index=tt_idx)
-            all_out.index.name = 'trade_time'
-            # print('::{}'.format(len(all_out)))
+        # if (len(all_out) % 241) != 0:
+        #     # Very slow
+        #     print('unaligned:{}:-{}'.format(code, len(all_out)))
+        #     # all_min_idx = self.trade_cal_index_minutes
+        #     # tt_idx = all_min_idx[(all_min_idx >= tstart) & (all_min_idx <= (tend + pd.Timedelta(days=1)))]
+        #     tt_idx = session_day_to_min_tus([dd], freq)
+        #     all_out = all_out.reindex(index=tt_idx)
+        #     all_out.index.name = 'trade_time'
+        #     # print('::{}'.format(len(all_out)))
 
         return all_out
 
@@ -314,6 +321,7 @@ class TusPriceInfo(object):
 
         # log.info('update...')
         tscode = symbol_std_to_tus(code)
+        self.ts_token.block_consume(1)
         info = self.pro_api.dividend(ts_code=tscode)
         # fcols = STOCK_XDXR_META['columns']
         # info_to_db = info_to_db.iloc[::-1]

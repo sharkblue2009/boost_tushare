@@ -69,7 +69,9 @@ class TusUpdater(TusReader):
         suspend = self.get_stock_suspend_d(code, m_start.strftime(DATE_FORMAT),
                                            m_end.strftime(DATE_FORMAT), refresh=False)
         suspend_v = suspend.loc[(suspend['suspend_type'] == 'S') & (suspend['suspend_timing'].isna()), :]
+        b_suspend = False
         if not suspend_v.empty:
+            b_suspend = True
             sus_dates = suspend_v.index
         else:
             sus_dates = pd.DatetimeIndex([], freq='D')
@@ -85,8 +87,9 @@ class TusUpdater(TusReader):
             # 股票存在停牌半天的情况，也会被计入suspend列表
             return True
 
-        log.info('[Day]-incomplete: {}-{}:: {}-{}-{} '.format(code, m_start, len(days_tcal), len(days_susp), len(val)))
-        # log.info('{}'.format(val['trade_date']))
+        if b_suspend:
+            log.info('[Day]-incomplete: {}-{}:: {}-{}-{} '.format(code, m_start, len(days_tcal), len(days_susp), len(val)))
+            # log.info('{}'.format(val['trade_date']))
 
         return False
 
@@ -185,17 +188,25 @@ class TusUpdater(TusReader):
 
         return
 
-    def price_minute_update(self, code, start, end, mode=0):
+    def price_minute_update(self, code, start, end, freq='1min', mode=0):
         """
 
         :param code:
         :param start:
         :param end:
+        :param freq:
         :param mode: -1: erase, 0: update from last valid, 1: update all
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
+        if freq not in ['1min', '5min', '15min', '30min', '60min', '120m']:
+            return None
+
+        if freq == '1min':
+            db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code),
+                            KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
+        else:
+            db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
+                            KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
 
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
@@ -245,7 +256,7 @@ class TusUpdater(TusReader):
             tt1 = vdates[tend]
             end_raw = (tt1 + pd.Timedelta(hours=17)).strftime(DATETIME_FORMAT)
             self.ts_token.block_consume(2)
-            data = ts.pro_bar(tscode, asset=astype, start_date=start_raw, end_date=end_raw, freq='1min')
+            data = ts.pro_bar(tscode, asset=astype, start_date=start_raw, end_date=end_raw, freq=freq)
             # data = _fetch(tscode, astype, start_raw, end_raw)
             if data is not None:
                 data = data.rename(columns={'vol': 'volume'})
@@ -405,30 +416,15 @@ def update_all(b_stock_day, b_stock_min, b_index_day, b_index_min):
     df_fund = reader.get_fund_info(refresh=True)
 
     if b_stock_day:
-        for k, stk in df_stock['ts_code'].items():
-            log.info('-->{}'.format(stk))
-            reader.get_stock_suspend_d(stk, start_date, end_date)
-            reader.get_stock_xdxr(stk, refresh=True)
-            # log.info('daily-step1')
-            # reader.price_daily_update(stk, start_date, end_date)
-            # # log.info('daily-step2')
-            # # reader.price_daily_update(stk, start_date, end_date)
-            #
-            # # log.info('min')
-            # # reader.price_minute_update(stk, start_date, end_date)
-            #
-            # log.info('adj')
-            # reader.stock_adjfactor_update(stk, start_date, end_date)
-            # log.info('dayinfo')
-            # reader.stock_dayinfo_update(stk, start_date, end_date)
-
-    if b_stock_day:
         def _fetch(symbols):
             results = {}
             for ss in symbols:
                 stk = ss['code']
                 t_start = ss['start_date']
                 t_end = ss['end_date']
+
+                reader.get_stock_suspend_d(stk, start_date, end_date)
+                reader.get_stock_xdxr(stk, refresh=True)
 
                 reader.price_daily_update(stk, t_start, t_end)
                 # reader.price_minute_update(stk, t_start, t_end)
@@ -453,14 +449,35 @@ def update_all(b_stock_day, b_stock_min, b_index_day, b_index_min):
 
             symbol_batch = all_symbols[idx:idx + batch_size]
 
-            total_results = parallelize(_fetch, workers=20, splitlen=3)(symbol_batch)
+            parallelize(_fetch, workers=20, splitlen=3)(symbol_batch)
 
     if b_index_day:
         log.info('Download all index data: {}'.format(len(df_index)))
 
+        def _fetch(symbols):
+            results = {}
+            for ss in symbols:
+                stk = ss['code']
+                t_start = ss['start_date']
+                t_end = ss['end_date']
+
+                reader.price_daily_update(stk, t_start, t_end)
+
+            return results
+
+        all_symbols = []
         for k, stk in df_index['ts_code'].items():
-            log.info('-->{}'.format(stk))
-            reader.price_daily_update(stk, start_date, end_date)
+            all_symbols.append({'code': stk, 'start_date': start_date, 'end_date': end_date})
+
+        # all_symbols = all_symbols[::-1]
+
+        batch_size = 60
+        for idx in range(0, len(all_symbols), batch_size):
+            progress_bar(idx, len(all_symbols))
+
+            symbol_batch = all_symbols[idx:idx + batch_size]
+
+            parallelize(_fetch, workers=20, splitlen=3)(symbol_batch)
 
     if b_stock_min:
         log.info('Download all stocks minute data: {}'.format(len(df_stock)))
@@ -471,7 +488,7 @@ def update_all(b_stock_day, b_stock_min, b_index_day, b_index_min):
                 stk = ss['code']
                 t_start = ss['start_date']
                 t_end = ss['end_date']
-                reader.price_minute_update(stk, t_start, t_end, mode=0)
+                reader.price_minute_update(stk, t_start, t_end, freq='5min', mode=0)
 
             return results
 
@@ -487,7 +504,7 @@ def update_all(b_stock_day, b_stock_min, b_index_day, b_index_min):
 
             symbol_batch = all_symbols[idx:idx + batch_size]
 
-            total_results = parallelize(_fetch_min, workers=20, splitlen=3)(symbol_batch)
+            parallelize(_fetch_min, workers=20, splitlen=3)(symbol_batch)
             # _fetch_min(symbol_batch)
 
     return
@@ -502,7 +519,7 @@ if __name__ == '__main__':
     zipline_logging.push_application()
 
     reader = TusUpdater()
-    update_all(b_stock_day=False, b_stock_min=True, b_index_day=False, b_index_min=True)
+    update_all(b_stock_day=True, b_stock_min=True, b_index_day=True, b_index_min=True)
 
     # stks = ['000155.XSHE'] #'000002.XSHE',
     # for stk in stks:
