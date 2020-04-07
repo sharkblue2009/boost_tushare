@@ -46,6 +46,46 @@ def get_tusreader() -> TusReader:
     return greader
 
 
+def get_all_price_day():
+    start_date = '20160101'
+    end_date = '20200101'
+
+    reader =get_tusreader()
+
+    df_stock = reader.get_stock_info()[:]
+    print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+    for k, stk in df_stock['ts_code'].items():
+        # log.info('-->{}'.format(stk))
+        reader.get_stock_adjfactor(stk, start_date, end_date)
+        # reader.get_stock_xdxr(stk, refresh=True)
+        reader.get_price_daily(stk, start_date, end_date)
+
+def get_all_dayinfo():
+    start_date = '20160101'
+    end_date = '20200101'
+
+    reader =get_tusreader()
+
+    df_stock = reader.get_stock_info()[:]
+    print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+    for k, stk in df_stock['ts_code'].items():
+        # log.info('-->{}'.format(stk))
+        reader.get_stock_daily_info(stk, start_date, end_date)
+
+def get_all_price_min():
+    start_date = '20191001'
+    end_date = '20200101'
+
+    reader =get_tusreader()
+
+    df_stock = reader.get_stock_info()[:]
+    print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+    for k, stk in df_stock['ts_code'].items():
+        # log.info('-->{}'.format(stk))
+        reader.get_price_minute(stk, start_date, end_date)
+
+
+
 if __name__ == '__main__':
     import logbook, sys
     import timeit
@@ -57,7 +97,13 @@ if __name__ == '__main__':
     ])
     zipline_logging.push_application()
 
-    reader = TusReader()
+
+    # print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
+
+    # print(timeit.Timer(lambda: get_all_dayinfo()).timeit(1))
+    #
+    print(timeit.Timer(lambda: get_all_price_min()).timeit(1))
+    # reader = TusReader()
 
     # df = reader.get_index_info()
     # df = reader.get_stock_info()
@@ -67,10 +113,10 @@ if __name__ == '__main__':
     # df = reader.get_stock_xdxr('002465.XSHE', refresh=True)
     # df = reader.get_stock_xdxr('000002.XSHE', refresh=False)
 
-    stocks = ['000001.XSHE']
-    for stk in stocks:
-        df = reader.get_price_minute('000001.XSHE', '20190117', '20200227', refresh=True)
-        print(df[-10:])
+    # stocks = ['000001.XSHE']
+    # for stk in stocks:
+    #     df = reader.get_price_minute('000001.XSHE', '20190117', '20200227', refresh=True)
+    #     print(df[-10:])
 
     # df = reader.get_price_minute('002465.XSHE', '20150117', '20150227', refresh=0)
     # df_day = reader.get_price_daily('002465.XSHE', '20150201', '20200207', refresh=1)

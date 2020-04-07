@@ -5,6 +5,7 @@ import tushare as ts
 import pandas as pd
 import time
 
+
 class TusPriceInfo(object):
     """
 
@@ -39,6 +40,8 @@ class TusPriceInfo(object):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = self.gen_keys_monthly(tstart, tend, list_date, delist_date)
+        if len(vdates) == 0:
+            return None
 
         out = {}
         for dd in vdates:
@@ -81,6 +84,8 @@ class TusPriceInfo(object):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = self.gen_keys_monthly(tstart, tend, list_date, delist_date)
+        if len(vdates) == 0:
+            return None
 
         fcols = STOCK_DAILY_INFO_META['columns']
         out = {}
@@ -127,6 +132,8 @@ class TusPriceInfo(object):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = self.gen_keys_monthly(tstart, tend, list_date, delist_date)
+        if len(vdates) == 0:
+            return None
 
         fcols = STOCK_ADJFACTOR_META['columns']
         out = {}
@@ -177,6 +184,8 @@ class TusPriceInfo(object):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = self.gen_keys_daily(tstart, tend, list_date, delist_date)
+        if len(vdates) == 0:
+            return None
 
         out = {}
         for dd in vdates:
@@ -206,7 +215,7 @@ class TusPriceInfo(object):
 
         if (len(all_out) % 241) != 0:
             # Very slow
-            print('unaligned:{}:-{}'.format(code,  len(all_out)))
+            print('unaligned:{}:-{}'.format(code, len(all_out)))
             # all_min_idx = self.trade_cal_index_minutes
             # tt_idx = all_min_idx[(all_min_idx >= tstart) & (all_min_idx <= (tend + pd.Timedelta(days=1)))]
             tt_idx = session_day_to_min_tus([dd], '1Min')
@@ -262,6 +271,8 @@ class TusPriceInfo(object):
             tend = pd.Timestamp(end)
 
         vdates = self.gen_keys_monthly(tstart, tend, list_date, delist_date)
+        if len(vdates) == 0:
+            return None
 
         fcols = STOCK_SUSPEND_D_META['columns']
         out = {}
@@ -279,15 +290,11 @@ class TusPriceInfo(object):
             data = self.pro_api.suspend_d(ts_code=tscode, start_date=start_raw, end_date=end_raw, fields=fcols)
             out[dtkey] = db.save(dtkey, data)
 
-        try:
-            all_out = pd.concat(out)
-            all_out = all_out.set_index('trade_date', drop=True)
-            all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
-            all_out = all_out.sort_index(ascending=True)
-            all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
-        except:
-            all_out = None
-
+        all_out = pd.concat(out)
+        all_out = all_out.set_index('trade_date', drop=True)
+        all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
+        all_out = all_out.sort_index(ascending=True)
+        all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
     def get_stock_xdxr(self, code, refresh=False):
