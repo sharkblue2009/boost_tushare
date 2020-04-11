@@ -93,11 +93,13 @@ class TusUpdater(TusReader):
 
         return False
 
-    def _integrity_check_minute_data(self, code, d_start, val, astype='E'):
+    def _integrity_check_minute_data(self, code, d_start, val, freq, astype='E'):
         """"""
         if astype != 'E':
             return True
 
+        cc = {'1min': 241, '5min': 49, '15min': 17, '30min': 9, '60min': 5, '120min': 3}
+        nbars = cc[freq]
         d_end = d_start
         d_end = min(self.tus_last_date, d_end)
 
@@ -109,14 +111,14 @@ class TusUpdater(TusReader):
             b_suspend = True
             if suspend_v['suspend_timing'].isna().iloc[-1]:
                 # 当日全天停牌
-                if len(val) == 241 or len(val) == 0:  #
+                if len(val) == nbars or len(val) == 0:  #
                     return True
             else:
                 # 部分时间停牌
-                if len(val) == 241:
+                if len(val) == nbars:
                     return True
         else:
-            if len(val) == 241:
+            if len(val) == nbars:
                 return True
 
         if b_suspend:
@@ -229,7 +231,7 @@ class TusUpdater(TusReader):
             val = db.load(dtkey)
             if val is not None:
                 # price_data integrity check.
-                if self._integrity_check_minute_data(code, dd, val, astype):
+                if self._integrity_check_minute_data(code, dd, val, freq, astype):
                     bvalid[n] = True
                     if mode == 0:
                         # log.info('{} last:{}'.format(code, dtkey))
