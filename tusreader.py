@@ -50,7 +50,7 @@ def get_all_price_day():
     start_date = '20160101'
     end_date = '20200101'
 
-    reader =get_tusreader()
+    reader = get_tusreader()
 
     df_stock = reader.get_stock_info()[:]
     print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
@@ -60,11 +60,12 @@ def get_all_price_day():
         # reader.get_stock_xdxr(stk, refresh=True)
         reader.get_price_daily(stk, start_date, end_date)
 
+
 def get_all_dayinfo():
     start_date = '20160101'
     end_date = '20200101'
 
-    reader =get_tusreader()
+    reader = get_tusreader()
 
     df_stock = reader.get_stock_info()[:]
     print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
@@ -72,11 +73,12 @@ def get_all_dayinfo():
         # log.info('-->{}'.format(stk))
         reader.get_stock_daily_info(stk, start_date, end_date)
 
+
 def get_all_price_min():
     start_date = '20191001'
     end_date = '20200101'
 
-    reader =get_tusreader()
+    reader = get_tusreader()
 
     df_stock = reader.get_stock_info()[:]
     print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
@@ -84,6 +86,37 @@ def get_all_price_min():
         # log.info('-->{}'.format(stk))
         reader.get_price_minute(stk, start_date, end_date)
 
+
+def tst_get_min(reader):
+    start_date = '20180101'
+    end_date = '20191231'
+
+    stks = ['000002.XSHE', '000155.XSHE']
+
+    for freq in ['5min']:
+        for stk in stks:
+            log.info('-->{}'.format(stk))
+            # df = reader.get_stock_suspend_d(stk, refresh=True)
+            log.info('min1')
+
+            df_day1 = reader.get_price_minute(stk, start_date, end_date, freq, resample=True)
+
+            log.info('min2')
+            df_day2 = reader.get_price_minute(stk, start_date, end_date, freq, resample=False)
+
+            df_day1.drop(columns='amount', inplace=True)
+            df_day2.drop(columns='amount', inplace=True)
+            v_day1 = df_day1.values  # .ravel()
+            v_day2 = df_day2.values  # .ravel()
+            res = (v_day1 == v_day2)
+            ii = np.argwhere(res == False)
+
+            vii = [df_day1.index[m] for m, n in ii]
+
+            if np.all(res):
+                print('right')
+            else:
+                print('wrong')
 
 
 if __name__ == '__main__':
@@ -97,13 +130,14 @@ if __name__ == '__main__':
     ])
     zipline_logging.push_application()
 
-
     # print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
 
     # print(timeit.Timer(lambda: get_all_dayinfo()).timeit(1))
     #
-    print(timeit.Timer(lambda: get_all_price_min()).timeit(1))
-    # reader = TusReader()
+    # print(timeit.Timer(lambda: get_all_price_min()).timeit(1))
+
+    reader = TusReader()
+    tst_get_min(reader)
 
     # df = reader.get_index_info()
     # df = reader.get_stock_info()

@@ -1,4 +1,4 @@
-from cntus.utils.xctus_utils import symbol_std_to_tus, session_day_to_min_tus
+from cntus.utils.xctus_utils import symbol_std_to_tus, session_day_to_min_tus, price1m_resample
 from cntus.xcachedb import *
 from cntus.dbschema import *
 import tushare as ts
@@ -157,7 +157,7 @@ class TusPriceInfo(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
-    def get_price_minute(self, code, start, end, freq='1min',refresh=False):
+    def get_price_minute(self, code, start, end, freq='1min', resample=True, refresh=False):
         """
         按日存取股票的分钟线数据
         1. 如当日停牌无交易，则存入空数据
@@ -172,17 +172,26 @@ class TusPriceInfo(object):
         :param code:
         :param start:
         :param end:
+        :param freq:
+        :param resample: if use 1Min data resample to others
         :param refresh:
         :return:
         """
         if freq not in ['1min', '5min', '15min', '30min', '60min', '120m']:
             return None
 
-        if freq == '1min':
+        if resample:
+            cc = {'1min': 1, '5min': 5, '15min': 15, '30min': 30, '60min': 60, '120min': 120}
+            periods = cc[freq]
+            curfreq = '1min'
+        else:
+            curfreq = freq
+
+        if curfreq == '1min':
             db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code),
                             KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
         else:
-            db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
+            db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code + curfreq),
                             KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
 
         tscode = symbol_std_to_tus(code)
@@ -206,8 +215,7 @@ class TusPriceInfo(object):
 
             start_raw = dd.strftime(DATETIME_FORMAT)
             end_raw = (dd + pd.Timedelta(hours=17)).strftime(DATETIME_FORMAT)
-            # fcols = EQUITY_MINUTE_PRICE_META['columns']
-            data = ts.pro_bar(tscode, asset=astype, start_date=start_raw, end_date=end_raw, freq=freq)
+            data = ts.pro_bar(tscode, asset=astype, start_date=start_raw, end_date=end_raw, freq=curfreq)
             if data is not None:
                 data = data.rename(columns={'vol': 'volume'})
                 # convert %Y-%m-%d %H:%M:%S to %Y%m%d %H:%M:%S
@@ -219,6 +227,8 @@ class TusPriceInfo(object):
         all_out = all_out.set_index('trade_time', drop=True)
         all_out.index = pd.to_datetime(all_out.index, format=DATETIME_FORMAT)
         all_out = all_out.sort_index(ascending=True)
+        if resample:
+            all_out = price1m_resample(all_out, periods, market_open=True)
 
         # if (len(all_out) % 241) != 0:
         #     # Very slow

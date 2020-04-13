@@ -84,7 +84,7 @@ def symbol_std_to_tus(symbol: str):
 #             return valid[0].strftime('%Y%m%d')
 #     return None
 
-
+FORMAT = lambda x: '%.4f' % x
 def price1m_resample(data1m, periods=5, market_open=True):
     """
     convert 1 minute data to other frequency
@@ -93,8 +93,10 @@ def price1m_resample(data1m, periods=5, market_open=True):
     :param market_open: if has market_open(9:30) data
     :return:
     """
-    if periods not in [5, 15, 30, 60, 120]:
+    if periods not in [1, 5, 15, 30, 60, 120]:
         raise KeyError
+    if periods == 1:
+        return data1m
 
     data1m = data1m.reset_index(drop=False)
     if market_open:
@@ -103,7 +105,7 @@ def price1m_resample(data1m, periods=5, market_open=True):
 
     df_out = data1m.groupby(data1m.index // periods).last()
     df_out['open'] = data1m['open'].groupby(data1m.index // periods).first()
-    df_out['high'] = data1m['high'].groupby(data1m.index // periods).max()
+    df_out['high'] = data1m['high'].groupby(data1m.index // periods).max() #.map(lambda x: FORMAT(x)).astype(float)
     df_out['low'] = data1m['low'].groupby(data1m.index // periods).min()
     df_out['volume'] = data1m['volume'].groupby(data1m.index // periods).sum()
     df_out['amount'] = data1m['amount'].groupby(data1m.index // periods).sum()
