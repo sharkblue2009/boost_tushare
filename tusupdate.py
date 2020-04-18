@@ -490,7 +490,7 @@ def update_all(b_stock_day, b_stock_min, b_index_day, b_index_min):
                 stk = ss['code']
                 t_start = ss['start_date']
                 t_end = ss['end_date']
-                reader.price_minute_update(stk, t_start, t_end, freq='5min', mode=0)
+                reader.price_minute_update(stk, t_start, t_end, freq='1min', mode=0)
 
             return results
 
@@ -521,7 +521,7 @@ if __name__ == '__main__':
     zipline_logging.push_application()
 
     reader = TusUpdater()
-    update_all(b_stock_day=True, b_stock_min=True, b_index_day=True, b_index_min=True)
+    update_all(b_stock_day=True, b_stock_min=False, b_index_day=True, b_index_min=False)
 
     # stks = ['000155.XSHE'] #'000002.XSHE',
     # for stk in stks:
