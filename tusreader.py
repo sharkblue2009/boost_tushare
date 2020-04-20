@@ -11,6 +11,7 @@ from cntus.tusbasic import TusBasicInfo
 from cntus.tusfinance import TusFinanceInfo
 from cntus.tusprice import TusPriceInfo
 from cntus.utils.qos import ThreadingTokenBucket
+from cntus.utils.parallelize import parallelize
 
 
 class TusReader(TusBasicInfo, TusFinanceInfo, TusPriceInfo):
@@ -23,7 +24,9 @@ class TusReader(TusBasicInfo, TusFinanceInfo, TusPriceInfo):
         # self.calendar = get_calendar('XSHG')
         ts.set_token(TUS_TOKEN)
         self.pro_api = ts.pro_api()
-        self.master_db = XCacheDB()
+        self.master_db = XCacheDB(LEVEL_DB_NAME)
+        # , write_buffer_size = 0x400000, block_size = 0x4000,
+        # max_file_size = 0x1000000, lru_cache_size = 0x100000, bloom_filter_bits = 0
 
         # 每分钟不超过500次，每秒8次，同时api调用不超过300个。
         self.ts_token = ThreadingTokenBucket(8, 300)
@@ -53,13 +56,58 @@ def get_all_price_day():
     reader = get_tusreader()
 
     df_stock = reader.get_stock_info()[:]
+    out = {}
     print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
     for k, stk in df_stock['ts_code'].items():
         # log.info('-->{}'.format(stk))
-        reader.get_stock_adjfactor(stk, start_date, end_date)
+        # reader.get_stock_adjfactor(stk, start_date, end_date)
         # reader.get_stock_xdxr(stk, refresh=True)
-        reader.get_price_daily(stk, start_date, end_date)
+        bars1 = reader.get_price_daily(stk, start_date, end_date)
+        out[stk] = bars1
 
+    return out
+
+
+def get_all_price_day_parallel():
+    start_date = '20160101'
+    end_date = '20200101'
+
+    reader = get_tusreader()
+
+    def _fetch(symbols):
+        results = {}
+        for ss in symbols:
+            stk = ss['code']
+            t_start = ss['start_date']
+            t_end = ss['end_date']
+
+            # adj1 = reader.get_stock_adjfactor(stk, t_start, t_end)
+            # reader.get_stock_xdxr(stk, refresh=True)
+            bars1 = reader.get_price_daily(stk, t_start, t_end)
+
+            results[stk] = bars1
+
+        return results
+
+    df_stock = reader.get_stock_info()[:]
+
+    all_symbols = []
+    for k, stk in df_stock['ts_code'].items():
+        all_symbols.append({'code': stk, 'start_date': start_date, 'end_date': end_date})
+
+    all_symbols = all_symbols[::-1]
+    all_out = {}
+    print('parallel total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+    batch_size = 200
+    for idx in range(0, len(all_symbols), batch_size):
+        # progress_bar(idx, len(all_symbols))
+
+        symbol_batch = all_symbols[idx:idx + batch_size]
+
+        results = parallelize(_fetch, workers=20, splitlen=10)(symbol_batch)
+        all_out.update(results)
+
+    return all_out
 
 def get_all_dayinfo():
     start_date = '20160101'
@@ -130,14 +178,15 @@ if __name__ == '__main__':
     ])
     zipline_logging.push_application()
 
-    # print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
+    print(timeit.Timer(lambda: get_all_price_day_parallel()).timeit(1))
+    print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
 
     # print(timeit.Timer(lambda: get_all_dayinfo()).timeit(1))
     #
     # print(timeit.Timer(lambda: get_all_price_min()).timeit(1))
 
-    reader = TusReader()
-    tst_get_min(reader)
+    # reader = TusReader()
+    # tst_get_min(reader)
 
     # df = reader.get_index_info()
     # df = reader.get_stock_info()
@@ -169,8 +218,8 @@ if __name__ == '__main__':
     # print(timeit.Timer(lambda: reader.get_stock_xdxr('002465.XSHE', refresh=False)).timeit(1))
     # print(timeit.Timer(lambda: reader.get_index_weight('399300.XSHE', '20200318', refresh=False)).timeit(1))
 
-    # print(timeit.Timer(lambda: reader.get_price_daily('002465.XSHE', '20190101', '20200303', refresh=2)).timeit(3))
-    # print(timeit.Timer(lambda: reader.get_price_daily('002465.XSHE', '20190101', '20200303', refresh=0)).timeit(3))
+    # print(timeit.Timer(lambda: reader.get_price_daily('002465.XSHE', '20150101', '20200303', refresh=False)).timeit(10))
+    # print(timeit.Timer(lambda: reader.get_price_daily('002465.XSHE', '20150101', '20200303', refresh=False)).timeit(10))
 
     # df = reader.get_income('002465.XSHE', '20150630', refresh=True)
     #
@@ -185,3 +234,4 @@ if __name__ == '__main__':
     # print(df)
     # print(timeit.Timer(lambda: reader.get_income('002465.XSHE', '20150630', refresh=True)).timeit(1))
     # print(timeit.Timer(lambda: reader.get_income('002465.XSHE', '20150630')).timeit(1))
+    

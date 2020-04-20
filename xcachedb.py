@@ -32,24 +32,21 @@ def force_string(s):
 
 
 def comp_timestamp(a, b):
-    try:
-        tsa = pd.Timestamp(a)
-        tsb = pd.Timestamp(b)
-        if tsa > tsb:
-            return 1
-        if tsa < tsb:
-            return -1
-        else:
-            return 0
-    except:
+    tsa = int(a)
+    tsb = int(b)
+    if tsa > tsb:
+        return 1
+    if tsa < tsb:
+        return -1
+    else:
         return 0
 
 
 class XCacheDB(object):
-    name = LEVEL_DB_NAME
 
-    def __init__(self, **kwargs):
+    def __init__(self, name, **kwargs):
         global LEVEL_DBS
+        self.name = name
         if not self.name in LEVEL_DBS:
             LEVEL_DBS[self.name] = plyvel.DB(
                 self.name, create_if_missing=True, **kwargs)
@@ -249,7 +246,17 @@ class XcAccessor(object):
         if self.tpkey == KVTYPE.TPK_DATE or self.tpkey == KVTYPE.TPK_DATE:
             it1 = self.db.iterator(include_value=False, include_stop=True)
             start = force_string(next(it1))
-            end = force_string(it1.seek_to_stop().prev())
-            return (start, end)
+            it1.seek_to_stop()
+            end = force_string(it1.prev())
+            return start, end
         else:
             return None
+
+    def iter(self, start, end):
+        return self.db.iterator(start=force_bytes(start), stop=force_bytes(end), include_stop=True)
+
+        # with self.db.iterator(start=force_bytes(start), stop=force_bytes(end), include_stop=True) as it:
+        #     for k, v in it:
+        #         ok = force_string(k)
+        #         ov = self.to_val_out(v)
+        #         yield ok, ov
