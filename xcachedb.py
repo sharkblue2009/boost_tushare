@@ -122,8 +122,8 @@ class XcAccessor(object):
     """
     metadata = {}
 
-    def __init__(self, sdb, t_key, t_val, metadata=None):
-        self.db = sdb
+    def __init__(self, master_db, sdb, t_key, t_val, metadata=None):
+        self.db = master_db.get_sdb(sdb)
         self.tpkey = t_key
         self.tpval = t_val
         self.metadata = metadata
@@ -184,7 +184,11 @@ class XcAccessor(object):
         return None, None
 
     def to_val_out(self, val):
+        """
 
+        :param val:
+        :return:
+        """
         if self.tpval == KVTYPE.TPV_DFRAME:
             cols = self.metadata['columns']
             if val == NOT_EXIST:

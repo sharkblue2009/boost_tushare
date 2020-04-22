@@ -1,6 +1,6 @@
-from cntus.utils.xctus_utils import symbol_std_to_tus, session_day_to_min_tus, price1m_resample
-from cntus.xcachedb import *
-from cntus.dbschema import *
+from .utils.xctus_utils import symbol_std_to_tus, session_day_to_min_tus, price1m_resample
+from .xcachedb import *
+from .dbschema import *
 import tushare as ts
 import pandas as pd
 import time
@@ -31,9 +31,6 @@ class TusPriceInfo(object):
         :param refresh:
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_DAILY_PRICE.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_DAILY_PRICE_META)
-
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
 
@@ -43,6 +40,8 @@ class TusPriceInfo(object):
         if len(vdates) == 0:
             return None
 
+        db = XcAccessor(self.master_db, TusSdbs.SDB_DAILY_PRICE.value + code,
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_DAILY_PRICE_META)
         out = {}
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
@@ -75,9 +74,6 @@ class TusPriceInfo(object):
         :param refresh:
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_DAILY_INFO_META)
-
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
 
@@ -88,6 +84,8 @@ class TusPriceInfo(object):
             return None
 
         fcols = STOCK_DAILY_INFO_META['columns']
+        db = XcAccessor(self.master_db, TusSdbs.SDB_STOCK_DAILY_INFO.value + code,
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_DAILY_INFO_META)
         out = {}
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
@@ -123,9 +121,6 @@ class TusPriceInfo(object):
         :param refresh:
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_ADJFACTOR_META)
-
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
 
@@ -136,6 +131,8 @@ class TusPriceInfo(object):
             return None
 
         fcols = STOCK_ADJFACTOR_META['columns']
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_ADJFACTOR_META)
         out = {}
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
@@ -187,13 +184,6 @@ class TusPriceInfo(object):
         else:
             curfreq = freq
 
-        if curfreq == '1min':
-            db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code),
-                            KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
-        else:
-            db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_MINUTE_PRICE.value + code + curfreq),
-                            KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
-
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
 
@@ -202,6 +192,9 @@ class TusPriceInfo(object):
         vdates = self.gen_keys_daily(tstart, tend, list_date, delist_date)
         if len(vdates) == 0:
             return None
+
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_MINUTE_PRICE.value + code + curfreq),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, EQUITY_MINUTE_PRICE_META)
 
         out = {}
         for dd in vdates:
@@ -250,7 +243,7 @@ class TusPriceInfo(object):
         :param refresh:
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_SUSPEND.value),
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_STOCK_SUSPEND.value),
                         KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, STOCK_SUSPEND_META)
 
         if not refresh:
@@ -272,9 +265,6 @@ class TusPriceInfo(object):
         :param refresh:
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_SUSPEND_D.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_SUSPEND_D_META)
-
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
 
@@ -292,6 +282,8 @@ class TusPriceInfo(object):
             return None
 
         fcols = STOCK_SUSPEND_D_META['columns']
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_STOCK_SUSPEND_D.value + code),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_SUSPEND_D_META)
         out = {}
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
@@ -321,7 +313,7 @@ class TusPriceInfo(object):
         :param refresh:
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_XDXR.value),
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_STOCK_XDXR.value),
                         KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, STOCK_XDXR_META)
 
         if not refresh:
@@ -331,7 +323,7 @@ class TusPriceInfo(object):
 
         # log.info('update...')
         tscode = symbol_std_to_tus(code)
-        self.ts_token.block_consume(1)
+        self.ts_token.block_consume(10)
         info = self.pro_api.dividend(ts_code=tscode)
         # fcols = STOCK_XDXR_META['columns']
         # info_to_db = info_to_db.iloc[::-1]

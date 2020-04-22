@@ -1,8 +1,9 @@
-from cntus.utils.xctus_utils import symbol_std_to_tus, symbol_tus_to_std, session_day_to_min_tus
-from cntus.xcachedb import *
-from cntus.dbschema import *
+from .utils.xctus_utils import symbol_std_to_tus, symbol_tus_to_std, session_day_to_min_tus
+from .xcachedb import *
+from .dbschema import *
 import pandas as pd
-from cntus.utils.memoize import lazyval
+from .utils.memoize import lazyval
+
 
 class TusBasicInfo(object):
     """
@@ -13,7 +14,7 @@ class TusBasicInfo(object):
     tus_last_date = None
 
     def get_trade_cal(self, refresh=False):
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_TRADE_CALENDAR.value),
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_TRADE_CALENDAR.value),
                         KVTYPE.TPK_RAW, KVTYPE.TPV_SER_COL, None)
         if not refresh:
             val = db.load('trade_cal')
@@ -28,6 +29,7 @@ class TusBasicInfo(object):
     @lazyval
     def trade_cal(self):
         return self.get_trade_cal()
+
     @lazyval
     def trade_cal_index(self):
         return pd.to_datetime(self.trade_cal.tolist(), format='%Y%m%d')
@@ -99,7 +101,7 @@ class TusBasicInfo(object):
 
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_ASSET_INFO.value),
+        db = XcAccessor(self.master_db, TusSdbs.SDB_ASSET_INFO.value,
                         KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, ASSET_INFO_META)
 
         if not refresh:
@@ -138,7 +140,7 @@ class TusBasicInfo(object):
 
     def get_stock_info(self, refresh=False):
         """"""
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_ASSET_INFO.value),
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_ASSET_INFO.value),
                         KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, ASSET_INFO_META)
 
         if not refresh:
@@ -173,7 +175,7 @@ class TusBasicInfo(object):
 
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_ASSET_INFO.value),
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_ASSET_INFO.value),
                         KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, ASSET_INFO_META)
 
         if not refresh:
@@ -210,8 +212,7 @@ class TusBasicInfo(object):
         :param refresh:
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_INDEX_WEIGHT.value + index_symbol),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, INDEX_WEIGHT_META)
+
 
         # 找到所处月份的第一个交易日
         trdt = pd.Timestamp(date)
@@ -223,6 +224,8 @@ class TusBasicInfo(object):
         dtkey = vdates[-1]
         dtkey = dtkey.strftime(DATE_FORMAT)
 
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_INDEX_WEIGHT.value + index_symbol),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, INDEX_WEIGHT_META)
         if not refresh:
             val = db.load(dtkey)
             if val is not None:
@@ -251,7 +254,7 @@ class TusBasicInfo(object):
         描述：获取申万行业分类，包括申万28个一级分类，104个二级分类，227个三级分类的列表信息
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_INDEX_CLASSIFY.value),
+        db = XcAccessor(self.master_db, TusSdbs.SDB_INDEX_CLASSIFY.value,
                         KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, INDEX_CLASSIFY_META)
 
         lkey = level.upper()
@@ -273,7 +276,7 @@ class TusBasicInfo(object):
         :param index_code:
         :return:
         """
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_INDEX_MEMBER.value),
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_INDEX_MEMBER.value),
                         KVTYPE.TPK_RAW, KVTYPE.TPV_DFRAME, INDEX_MEMBER_META)
 
         lkey = index_code.upper()

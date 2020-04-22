@@ -1,5 +1,6 @@
 from enum import Enum
 
+DEFAULT_MINUTE_PRICE_FREQ = '1min'
 
 class TusKeys(Enum):
     INDEX_INFO = 'IndexInfo'

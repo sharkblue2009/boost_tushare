@@ -1,6 +1,6 @@
-from cntus.utils.xctus_utils import symbol_std_to_tus, symbol_tus_to_std
-from cntus.xcachedb import *
-from cntus.dbschema import *
+from .utils.xctus_utils import symbol_std_to_tus, symbol_tus_to_std
+from .xcachedb import *
+from .dbschema import *
 
 
 class TusFinanceInfo(object):
@@ -13,9 +13,6 @@ class TusFinanceInfo(object):
     tus_last_date = None
 
     def get_income(self, code, period, refresh=False):
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_FIN_INCOME.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_INCOME_META)
-
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
 
@@ -31,6 +28,8 @@ class TusFinanceInfo(object):
         if not tpp1.is_quarter_end:
             return None
 
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_STOCK_FIN_INCOME.value + code),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_INCOME_META)
         dtkey = tpp1.strftime(DATE_FORMAT)
         if not refresh:
             val = db.load(dtkey)
@@ -45,9 +44,6 @@ class TusFinanceInfo(object):
         return out
 
     def get_balancesheet(self, code, period, refresh=False):
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_FIN_BALANCE.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_BALANCE_META)
-
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
 
@@ -63,6 +59,8 @@ class TusFinanceInfo(object):
         if not tpp1.is_quarter_end:
             return None
 
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_STOCK_FIN_BALANCE.value + code),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_BALANCE_META)
         dtkey = tpp1.strftime(DATE_FORMAT)
         if not refresh:
             val = db.load(dtkey)
@@ -78,9 +76,6 @@ class TusFinanceInfo(object):
         return out
 
     def get_cashflow(self, code, period, refresh=False):
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_FIN_CASHFLOW.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_CASHFLOW_META)
-
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
 
@@ -96,6 +91,8 @@ class TusFinanceInfo(object):
         if not tpp1.is_quarter_end:
             return None
 
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_STOCK_FIN_CASHFLOW.value + code),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_CASHFLOW_META)
         dtkey = tpp1.strftime(DATE_FORMAT)
         if not refresh:
             val = db.load(dtkey)
@@ -117,9 +114,6 @@ class TusFinanceInfo(object):
         pass
 
     def get_fina_indicator(self, code, period, refresh=False):
-        db = XcAccessor(self.master_db.get_sdb(TusSdbs.SDB_STOCK_FIN_INDICATOR.value + code),
-                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_INDICATOR_META)
-
         tscode = symbol_std_to_tus(code)
         astype, list_date, delist_date = self.asset_lifetime(code)
 
@@ -135,6 +129,8 @@ class TusFinanceInfo(object):
         if not tpp1.is_quarter_end:
             return None
 
+        db = XcAccessor(self.master_db, (TusSdbs.SDB_STOCK_FIN_INDICATOR.value + code),
+                        KVTYPE.TPK_DATE, KVTYPE.TPV_DFRAME, STOCK_FIN_INDICATOR_META)
         dtkey = tpp1.strftime(DATE_FORMAT)
         if not refresh:
             val = db.load(dtkey)
