@@ -1,14 +1,21 @@
 from enum import Enum
+from cntus.xcdb.xcdb import KVTYPE
 
-DEFAULT_MINUTE_PRICE_FREQ = '1min'
 
 class TusKeys(Enum):
+    """
+    Database keys.
+    """
     INDEX_INFO = 'IndexInfo'
     STOCK_INFO = 'StockInfo'
     FUND_INFO = 'FundInfo'
 
 
 class TusSdbs(Enum):
+    """
+    # Sub-Database paths.
+    """
+    # SDB_DTYPES = 'ts:dtypes'
     SDB_TRADE_CALENDAR = 'ts'
     SDB_ASSET_INFO = 'ts:asset_info'
     # SDB_EQUITY_CALENDAR = 'ts:equity_calendar'
@@ -18,9 +25,9 @@ class TusSdbs(Enum):
     SDB_INDEX_WEIGHT = 'ts:index_weight:'
     SDB_INDEX_CLASSIFY = 'ts:index_classify'
     SDB_INDEX_MEMBER = 'ts:index_member'
+    SDB_SUSPEND_D = 'ts:ssuspend_d:'
     SDB_STOCK_DAILY_INFO = 'ts:stock_daily_info:'
     SDB_STOCK_SUSPEND = 'ts:stock_suspend'
-    SDB_STOCK_SUSPEND_D = 'ts:stock_suspend_d:'
     SDB_STOCK_FIN_INCOME = 'ts:stock_finance:income:'
     SDB_STOCK_FIN_BALANCE = 'ts:stock_finance:balance:'
     SDB_STOCK_FIN_CASHFLOW = 'ts:stock_finance:cashflow:'
@@ -28,19 +35,33 @@ class TusSdbs(Enum):
     SDB_STOCK_DAILY_MARGIN = 'ts:daily_margin:'
     SDB_STOCK_ADJFACTOR = 'ts:stock_adj_factor:'
 
+
+TRD_CAL_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_SER_COL,
+}
+
 ASSET_INFO_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': ['ts_code', 'exchange', 'name', 'start_date', 'end_date'],
 }
 
 INDEX_WEIGHT_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': ['trade_date', 'con_code', 'weight'],
 }
 
 INDEX_CLASSIFY_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': ['index_code', 'industry_name', 'level'],
 }
 
 INDEX_MEMBER_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': ['index_code',
                 'index_name',
                 'con_code',
@@ -52,6 +73,8 @@ INDEX_MEMBER_META = {
 }
 
 STOCK_XDXR_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': ['end_date',
                 'ann_date',
                 'div_proc',
@@ -71,6 +94,8 @@ STOCK_XDXR_META = {
 }
 
 EQUITY_DAILY_PRICE_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
         'trade_date',
         'open',
@@ -83,6 +108,8 @@ EQUITY_DAILY_PRICE_META = {
 }
 
 EQUITY_MINUTE_PRICE_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
         'trade_time',
         'open',
@@ -95,6 +122,8 @@ EQUITY_MINUTE_PRICE_META = {
 }
 
 STOCK_ADJFACTOR_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
         'trade_date',
         'adj_factor',
@@ -102,6 +131,8 @@ STOCK_ADJFACTOR_META = {
 }
 
 STOCK_DAILY_INFO_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
         'trade_date',
         'close',
@@ -124,6 +155,8 @@ STOCK_DAILY_INFO_META = {
 }
 
 STOCK_SUSPEND_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
         'suspend_date',
         # 'resume_date',
@@ -133,7 +166,20 @@ STOCK_SUSPEND_META = {
     ]
 }
 
+SUSPEND_D_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
+    'columns': [
+        'ts_code',
+        'trade_date',
+        'suspend_timing',
+        'suspend_type',
+    ]
+}
+
 STOCK_SUSPEND_D_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
         'trade_date',
         'suspend_timing',
@@ -142,6 +188,8 @@ STOCK_SUSPEND_D_META = {
 }
 
 STOCK_FIN_INCOME_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
         'ann_date',
         'f_ann_date',
@@ -212,6 +260,8 @@ STOCK_FIN_INCOME_META = {
 }
 
 STOCK_FIN_BALANCE_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
         'ann_date',
         'f_ann_date',
@@ -354,6 +404,8 @@ STOCK_FIN_BALANCE_META = {
 }
 
 STOCK_FIN_CASHFLOW_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
         'ann_date',
         'f_ann_date',
@@ -449,6 +501,8 @@ STOCK_FIN_CASHFLOW_META = {
 }
 
 STOCK_FIN_INDICATOR_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
         'ann_date',
         'end_date',

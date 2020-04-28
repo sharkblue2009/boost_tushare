@@ -6,12 +6,11 @@ from enum import IntEnum
 
 import pandas as pd
 import numpy as np
-import plyvel
+from abc import abstractmethod
 
-log = Logger('tusdb')
+log = Logger('xcdb')
 
-LEVEL_DB_NAME = 'D:\Database\stock_db\TUS_DB'
-LEVEL_DBS = {}
+DBS_OPENED = {}
 
 DATE_FORMAT = '%Y%m%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -31,68 +30,36 @@ def force_string(s):
         return s
 
 
-def comp_timestamp(a, b):
-    tsa = int(a)
-    tsb = int(b)
-    if tsa > tsb:
-        return 1
-    if tsa < tsb:
-        return -1
-    else:
-        return 0
-
-
 class XCacheDB(object):
+    """
+    Database for caching.
+    """
 
-    def __init__(self, name, **kwargs):
-        global LEVEL_DBS
-        self.name = name
-        if not self.name in LEVEL_DBS:
-            LEVEL_DBS[self.name] = plyvel.DB(
-                self.name, create_if_missing=True, **kwargs)
-        self.db = LEVEL_DBS[self.name]
-
+    @abstractmethod
     def close(self):
-        del LEVEL_DBS[self.name]
-        if isinstance(self.db, plyvel.DB):
-            self.db.close()
-        else:
-            self.db.db.close()
+        """"""
 
-    def keys(self):
-        return self.db.iterator(include_value=False)
+    # def keys(self):
+    #     return self.db.iterator(include_value=False)
+    #
+    # def values(self):
+    #     return self.db.iterator(include_key=False)
+    #
+    # def empty(self):
+    #     for key in self.db.iterator(include_value=False):
+    #         return False
+    #     return True
+    #
+    # def items(self):
+    #     return self.db.iterator()
 
-    def values(self):
-        return self.db.iterator(include_key=False)
-
-    def empty(self):
-        for key in self.db.iterator(include_value=False):
-            return False
-        return True
-
-    def items(self):
-        return self.db.iterator()
-
+    @abstractmethod
     def show(self):
-        print(list(self.db.iterator(include_value=False)))
-        log.info('create subdb: {}'.format(self.db.get_property(b'leveldb.stats')))
+        """"""
 
-    @staticmethod
-    def _get_sdb(master_db, sdb_path: str):
-        lst_prefix = sdb_path.split(':')
-        cur_db = master_db
-        for pre in lst_prefix:
-            cur_db = cur_db.prefixed_db(force_bytes(pre))
-        return cur_db
-
+    @abstractmethod
     def get_sdb(self, sdb_path: str):
-        try:
-            # log.info('>>SDB>>{}'.format(sdb_path))
-            sdb = self._get_sdb(self.db, sdb_path)
-        except:
-            raise ValueError('create sdb error')
-
-        return sdb
+        """"""
 
 
 class KVTYPE(IntEnum):
@@ -107,8 +74,21 @@ class KVTYPE(IntEnum):
     TPV_NARR_2D = 15
 
 
+class IOFLAG(IntEnum):
+    READ_DBONLY = 0   # Read from cache only
+    READ_XC = 1   # Read from cache, if miss, load from remote
+    READ_NETONLY = 2  # Read from remote only
+
+    ERASE = 10  # Erase range
+    ERASE_ALL = 11 # Erase SDB
+
+    UPDATE_MISS = 20   # Update missed/NA data
+    UPDATE_INVALID = 21  # Update invalid&missed data
+    UPDATE_ALL = 23    # Update all data
+
+
 """
- if value not exist, use this valid to indicate 
+if value not exist, use this valid to indicate 
 """
 NOT_EXIST = b'NA'
 
@@ -119,17 +99,20 @@ class XcAccessor(object):
     因此我们必须保证数据库中，头和尾之间的数据是完整的。
     这样才能和原始数据对齐， 从而能判断key(head<key<tail)对应的数据是否存在。
     例如价格数据，如果所取得key没有对应的value,且key位于head和tail之间，那么可判断该价格数据不存在（股票停牌）
+    Note: read-write transactions may be nested.
+        write transition begin-commit block can not insert other transition without nesting.
+
     """
     metadata = {}
-
-    def __init__(self, master_db, sdb, t_key, t_val, metadata=None):
-        self.db = master_db.get_sdb(sdb)
-        self.tpkey = t_key
-        self.tpval = t_val
-        self.metadata = metadata
-        return
+    tpkey = KVTYPE.TPK_RAW
+    tpval = KVTYPE.TPV_DFRAME
 
     def to_db_key(self, key):
+        """
+
+        :param key:
+        :return:
+        """
         if self.tpkey == KVTYPE.TPK_DATE:
             if isinstance(key, pd.Timestamp):
                 real_key = force_bytes(key.strftime('%Y%m%d'))
@@ -145,21 +128,31 @@ class XcAccessor(object):
 
         return real_key
 
-    def to_val_in(self, val):
+    def to_val_in(self, val, vtype):
         """
         format val which need to database.
         :param val: value to be save
         :return: data to DB, data to APP.
         """
         if self.tpval == KVTYPE.TPV_DFRAME:
-            if isinstance(val, pd.DataFrame):
-                if val.empty:
-                    return NOT_EXIST, pd.DataFrame(columns=self.metadata['columns'])
-                if self.metadata:
-                    val = val.reindex(columns=self.metadata['columns'])
-                return pickle.dumps(val.values), val
-            else:
-                return None, pd.DataFrame(columns=self.metadata['columns'])
+            if vtype is None:
+                if isinstance(val, pd.DataFrame):
+                    if val.empty:
+                        return NOT_EXIST, pd.DataFrame(columns=self.metadata['columns'])
+                    if self.metadata:
+                        val = val.reindex(columns=self.metadata['columns'])
+                    return pickle.dumps(val.values), val
+                else:
+                    return None, pd.DataFrame(columns=self.metadata['columns'])
+            elif vtype == KVTYPE.TPV_NARR_2D:
+                if isinstance(val, pd.DataFrame):
+                    if val.empty:
+                        return NOT_EXIST,np.empty((0, len(self.metadata['columns'])))
+                    if self.metadata:
+                        val = val.reindex(columns=self.metadata['columns'])
+                    return pickle.dumps(val.values), val.values
+                else:
+                    return None, pd.DataFrame(columns=self.metadata['columns'])
         elif self.tpval == KVTYPE.TPV_SER_ROW:
             if isinstance(val, pd.Series):
                 if val.empty:
@@ -183,19 +176,28 @@ class XcAccessor(object):
 
         return None, None
 
-    def to_val_out(self, val):
+    def to_val_out(self, val, vtype):
         """
 
         :param val:
+        :param vtype:
         :return:
         """
+        realval = None
         if self.tpval == KVTYPE.TPV_DFRAME:
             cols = self.metadata['columns']
-            if val == NOT_EXIST:
-                realval = pd.DataFrame(columns=cols)
-            else:
-                val = pickle.loads(val)
-                realval = pd.DataFrame(data=val, columns=cols)
+            if vtype is None:
+                if val == NOT_EXIST:
+                    realval = pd.DataFrame(columns=cols)
+                else:
+                    val = pickle.loads(val)
+                    realval = pd.DataFrame(data=val, columns=cols)
+            elif vtype == KVTYPE.TPV_NARR_2D:
+                if val == NOT_EXIST:
+                    realval = np.empty((0, len(cols)))
+                else:
+                    val = pickle.loads(val)
+                    realval = val
         elif self.tpval == KVTYPE.TPV_SER_ROW:
             cols = self.metadata['columns']
             if val == NOT_EXIST:
@@ -209,58 +211,46 @@ class XcAccessor(object):
             else:
                 val = pickle.loads(val)
                 realval = pd.Series(data=val)
+        elif self.tpval == KVTYPE.TPV_NARR_1D:
+            if val == NOT_EXIST:
+                realval = np.empty((0,))
+            else:
+                val = pickle.loads(val)
+                realval = val
+        elif self.tpval == KVTYPE.TPV_NARR_2D:
+            cols = self.metadata['columns']
+            if val == NOT_EXIST:
+                realval = np.empty((0, len(cols)))
+            else:
+                val = pickle.loads(val)
+                realval = val
         else:
             realval = val
 
         return realval
 
-    def load(self, key):
+    @abstractmethod
+    def load(self, key, vtype=None):
         """
 
         :param key:
+        :param vtype: override value type for output.
         :return:
         """
-        key = self.to_db_key(key)
-        if key:
-            val = self.db.get(key)
-            if val:
-                return self.to_val_out(val)
-        return None
 
-    def save(self, key, val):
+    @abstractmethod
+    def save(self, key, val, vtype=None):
         """"""
-        key = self.to_db_key(key)
-        dbval, appval = self.to_val_in(val)
-        if key and dbval:
-            self.db.put(key, dbval)
-        return appval
 
+    @abstractmethod
     def remove(self, key):
         """"""
-        key = self.to_db_key(key)
-        if key:
-            self.db.delete(key)
 
-    def get_keys(self):
+    @abstractmethod
+    def commit(self):
         """"""
-        keys = list(self.db.iterator(include_value=False))
-        return keys
 
-    def get_key_range(self):
-        if self.tpkey == KVTYPE.TPK_DATE or self.tpkey == KVTYPE.TPK_DATE:
-            it1 = self.db.iterator(include_value=False, include_stop=True)
-            start = force_string(next(it1))
-            it1.seek_to_stop()
-            end = force_string(it1.prev())
-            return start, end
-        else:
-            return None
+    @abstractmethod
+    def load_range(self, kstart, kend, vtype):
+        """"""
 
-    def iter(self, start, end):
-        return self.db.iterator(start=force_bytes(start), stop=force_bytes(end), include_stop=True)
-
-        # with self.db.iterator(start=force_bytes(start), stop=force_bytes(end), include_stop=True) as it:
-        #     for k, v in it:
-        #         ok = force_string(k)
-        #         ov = self.to_val_out(v)
-        #         yield ok, ov
