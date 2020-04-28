@@ -93,7 +93,7 @@ def QUARTER_START(date, trade_days=None):
 
 def QUARTER_END(date, trade_days=None):
     dd = date
-    mday = pd.Timestamp(year=dd.year, month=_quater_map[dd.month]+2, day=1)
+    mday = pd.Timestamp(year=dd.year, month=_quater_map[dd.month] + 2, day=1)
     mday = pd.Timestamp(year=mday.year, month=mday.month, day=mday.days_in_month)
     if trade_days is None:
         return mday
@@ -104,7 +104,7 @@ def QUARTER_END(date, trade_days=None):
     return None
 
 
-def gen_keys_monthly(start_dt, end_dt, asset_life=None, last_trade_day=None):
+def gen_keys_monthly(start_dt, end_dt, asset_life=None, trade_days=None):
     """
     根据当前交易品种的有效交易日历， 产生月度keys
     :param start_dt:
@@ -115,7 +115,7 @@ def gen_keys_monthly(start_dt, end_dt, asset_life=None, last_trade_day=None):
     limit_start, limit_end = asset_life
 
     tstart = max([limit_start, start_dt])
-    tend = min([limit_end, end_dt, last_trade_day])
+    tend = min([limit_end, end_dt, trade_days[-1]])
 
     m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
     m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
@@ -124,19 +124,20 @@ def gen_keys_monthly(start_dt, end_dt, asset_life=None, last_trade_day=None):
     return vdates
 
 
-def gen_keys_daily(start_dt, end_dt, asset_life=None, trade_days=None, last_trade_day=None):
+def gen_keys_daily(start_dt, end_dt, asset_life=None, trade_days=None):
     """
 
     :param start_dt:
     :param end_dt:
-    :param astype:
+    :param asset_life:
+    :param trade_days:
     :return:
     """
 
     limit_start, limit_end = asset_life
 
     tstart = max([limit_start, start_dt])
-    tend = min([limit_end, end_dt, last_trade_day])
+    tend = min([limit_end, end_dt])
 
     if trade_days is None:
         vdates = pd.date_range(tstart, tend, freq='D')

@@ -35,9 +35,11 @@ class XcTusReader(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice)
         # max_file_size = 0x1000000, lru_cache_size = 0x100000, bloom_filter_bits = 0
 
         if xctus_last_date is None:
-            self.xctus_last_date = pd.Timestamp.today() - pd.Timedelta(days=1)
+            self.xctus_last_date = pd.Timestamp.today().normalize() #- pd.Timedelta(days=1)
         else:
             self.xctus_last_date = xctus_last_date
+
+        print('Last date:{}'.format(self.xctus_last_date))
 
         super(XcTusReader, self).__init__()
 
@@ -77,12 +79,12 @@ def cntus_update_basic():
     """
     reader = get_tusreader()
     log.info('Download basic information...(Trading Calendar, Asset info)')
-    reader.get_trade_cal(IOFLAG.READ_NETONLY)
-    reader.get_index_info(IOFLAG.READ_NETONLY)
-    reader.get_stock_info(IOFLAG.READ_NETONLY)
-    reader.get_fund_info(IOFLAG.READ_NETONLY)
-    reader.get_index_classify(level='L1', flag=IOFLAG.READ_NETONLY)
-    reader.get_index_classify(level='L2', flag=IOFLAG.READ_NETONLY)
+    reader.get_trade_cal(IOFLAG.READ_NETDB)
+    reader.get_index_info(IOFLAG.READ_NETDB)
+    reader.get_stock_info(IOFLAG.READ_NETDB)
+    reader.get_fund_info(IOFLAG.READ_NETDB)
+    reader.get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
+    reader.get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
     return
 
 
@@ -108,7 +110,7 @@ def cntus_update_stock_day(start_date='20150101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
 
-            reader.get_stock_xdxr(stk, IOFLAG.READ_NETONLY)
+            reader.get_stock_xdxr(stk, IOFLAG.READ_NETDB)
             reader.update_stock_adjfactor(stk, t_start, t_end)
             results[stk] = reader.update_stock_dayinfo(stk, t_start, t_end)
 
@@ -116,7 +118,11 @@ def cntus_update_stock_day(start_date='20150101'):
 
     end_date = pd.Timestamp.today().strftime('%Y%m%d')
 
+    log.info('Downloading stocks suspend data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
     reader.update_suspend_d(start_date, end_date)
+
+    #dummy read suspend_info
+    suspend_info = reader.get_suspend_d(start_date, end_date)
 
     all_symbols = []
     for k, stk in df_stock['ts_code'].items():

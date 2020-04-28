@@ -6,6 +6,7 @@ class TusKeys(Enum):
     """
     Database keys.
     """
+    LAST_UPDATE = 'LastUpdateDate'
     INDEX_INFO = 'IndexInfo'
     STOCK_INFO = 'StockInfo'
     FUND_INFO = 'FundInfo'

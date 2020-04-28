@@ -45,7 +45,7 @@ class TestTusReader(unittest.TestCase):
         reader = self.reader
         code = '399300.SZ'
         date = '20171010'
-        df1 = reader.get_index_weight(code, date, IOFLAG.READ_NETONLY)
+        df1 = reader.get_index_weight(code, date, IOFLAG.READ_NETDB)
         print(df1.iloc[-10:])
         df2 = reader.get_index_weight(code, date, IOFLAG.READ_XC)
         self.assertTrue(check_df_equal(df1, df2))
@@ -53,7 +53,7 @@ class TestTusReader(unittest.TestCase):
     def test_index_member(self):
         reader = self.reader
         index_code = '000001.SZ'
-        df1 = reader.get_index_member(index_code, IOFLAG.READ_NETONLY)
+        df1 = reader.get_index_member(index_code, IOFLAG.READ_NETDB)
         df2 = reader.get_index_member(index_code, IOFLAG.READ_XC)
         self.assertTrue(check_df_equal(df1, df2))
 
@@ -66,8 +66,10 @@ class TestTusReader(unittest.TestCase):
         reader = self.reader
         start = '20190101'
         end = '20200310'
+        stk = '000029.SZ'
         df = reader.get_suspend_d(start, end)
-        print(df.iloc[-20:])
+        print(df.loc[pd.IndexSlice[:, stk], :])
+
         self.assertTrue(not df.empty)
 
     def test_stock_daily(self):
@@ -84,23 +86,23 @@ class TestTusReader(unittest.TestCase):
         reader = self.reader
         stk = '002465.SZ'
         start = '20190101'
-        df1 = reader.get_income(stk, start, IOFLAG.READ_NETONLY)
+        df1 = reader.get_income(stk, start, IOFLAG.READ_NETDB)
         self.assertFalse(df1.empty)
         df2 = reader.get_income(stk, start)
         self.assertTrue(check_df_equal(df1, df2))
 
-        df1 = reader.get_cashflow(stk, start, IOFLAG.READ_NETONLY)
+        df1 = reader.get_cashflow(stk, start, IOFLAG.READ_NETDB)
         self.assertFalse(df1.empty)
         df2 = reader.get_cashflow(stk, start)
         self.assertTrue(check_df_equal(df1, df2))
 
-        df1 = reader.get_balancesheet(stk, start, IOFLAG.READ_NETONLY)
+        df1 = reader.get_balancesheet(stk, start, IOFLAG.READ_NETDB)
         self.assertFalse(df1.empty)
         df2 = reader.get_balancesheet(stk, start)
         df2 = df2.astype(df1.dtypes)
         self.assertTrue(check_df_equal(df1, df2))
 
-        df1 = reader.get_fina_indicator(stk, start, IOFLAG.READ_NETONLY)
+        df1 = reader.get_fina_indicator(stk, start, IOFLAG.READ_NETDB)
         self.assertFalse(df1.empty)
         df2 = reader.get_fina_indicator(stk, start)
         self.assertTrue(check_df_equal(df1, df2))

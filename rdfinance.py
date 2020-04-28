@@ -13,7 +13,6 @@ class XcReaderFinance(object):
     """
 
     master_db = None
-    xctus_last_date = None
     netloader: TusNetLoader = None
 
     def get_income(self, code, period, flag=IOFLAG.READ_XC):
@@ -28,8 +27,8 @@ class XcReaderFinance(object):
         report_date = QUARTER_END(tperiod)
         dtkey = report_date.strftime(DATE_FORMAT)
 
-        db = self.facc( (TusSdbs.SDB_STOCK_FIN_INCOME.value + code),
-                        STOCK_FIN_INCOME_META)
+        db = self.facc((TusSdbs.SDB_STOCK_FIN_INCOME.value + code),
+                       STOCK_FIN_INCOME_META)
         if flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val
@@ -40,7 +39,7 @@ class XcReaderFinance(object):
             info = self.netloader.set_income(code, dtkey)
             val = db.save(dtkey, info)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_income(code, dtkey)
             val = db.save(dtkey, info)
             return val
@@ -51,8 +50,8 @@ class XcReaderFinance(object):
         report_date = QUARTER_END(tperiod)
         dtkey = report_date.strftime(DATE_FORMAT)
 
-        db = self.facc( (TusSdbs.SDB_STOCK_FIN_BALANCE.value + code),
-                        STOCK_FIN_BALANCE_META)
+        db = self.facc((TusSdbs.SDB_STOCK_FIN_BALANCE.value + code),
+                       STOCK_FIN_BALANCE_META)
         if flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val
@@ -63,7 +62,7 @@ class XcReaderFinance(object):
             info = self.netloader.set_balancesheet(code, dtkey)
             val = db.save(dtkey, info)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_balancesheet(code, dtkey)
             val = db.save(dtkey, info)
             return val
@@ -74,8 +73,8 @@ class XcReaderFinance(object):
         report_date = QUARTER_END(tperiod)
         dtkey = report_date.strftime(DATE_FORMAT)
 
-        db = self.facc( (TusSdbs.SDB_STOCK_FIN_CASHFLOW.value + code),
-                        STOCK_FIN_CASHFLOW_META, readonly=True)
+        db = self.facc((TusSdbs.SDB_STOCK_FIN_CASHFLOW.value + code),
+                       STOCK_FIN_CASHFLOW_META, readonly=True)
         if flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val
@@ -86,7 +85,7 @@ class XcReaderFinance(object):
             info = self.netloader.set_cashflow(code, dtkey)
             val = db.save(dtkey, info)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_cashflow(code, dtkey)
             val = db.save(dtkey, info)
             return val
@@ -103,8 +102,8 @@ class XcReaderFinance(object):
         report_date = QUARTER_END(tperiod)
         dtkey = report_date.strftime(DATE_FORMAT)
 
-        db = self.facc( (TusSdbs.SDB_STOCK_FIN_INDICATOR.value + code),
-                        STOCK_FIN_INDICATOR_META)
+        db = self.facc((TusSdbs.SDB_STOCK_FIN_INDICATOR.value + code),
+                       STOCK_FIN_INDICATOR_META)
         if flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val
@@ -115,7 +114,7 @@ class XcReaderFinance(object):
             info = self.netloader.set_fina_indicator(code, dtkey)
             val = db.save(dtkey, info)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_fina_indicator(code, dtkey)
             val = db.save(dtkey, info)
             return val

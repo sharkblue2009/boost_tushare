@@ -48,7 +48,7 @@ class XcLMDB(XCacheDB):
 
     def show(self):
         print(self.env.info())
-        print(self.env.stat())
+        # print(self.env.stat())
         # print(self.env.max_key_size())
 
     @staticmethod

@@ -302,7 +302,7 @@ class XcNLFinance(object):
 
 class TusNetLoader(XcNLBasic, XcNLFinance, XcNLPrice):
 
-    def __init__(self, xctus_last_date=None):
+    def __init__(self):
         """
         :param xctus_last_date: Tushare last date with data available,
                             we assume yesterday's data is available in today.

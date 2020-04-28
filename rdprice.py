@@ -14,54 +14,8 @@ class XcReaderPrice(object):
     行情数据
     """
     master_db = None
-    xctus_last_date = None
     trade_cal_index = None
     netloader: TusNetLoader = None
-
-    # def gen_keys_monthly(self, code, start_dt, end_dt, astype=None):
-    #     """
-    #
-    #     :param start_dt:
-    #     :param end_dt:
-    #     :param astype: asset type
-    #     :return:
-    #     """
-    #     if astype is None:
-    #         astype = self.asset_type(code)
-    #
-    #     limit_start, limit_end = self.asset_lifetime(code, astype)
-    #
-    #     # 当前交易品种的有效交易日历
-    #     today = self.xctus_last_date
-    #     tstart = max([limit_start, start_dt])
-    #     tend = min([limit_end, end_dt, today])
-    #
-    #     m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
-    #     m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
-    #
-    #     vdates = pd.date_range(m_start, m_end, freq='MS')
-    #     return vdates
-    #
-    # def gen_keys_daily(self, code, start_dt, end_dt, astype=None):
-    #     """
-    #
-    #     :param start_dt:
-    #     :param end_dt:
-    #     :param astype:
-    #     :return:
-    #     """
-    #     if astype is None:
-    #         astype = self.asset_type(code)
-    #
-    #     limit_start, limit_end = self.asset_lifetime(code, astype)
-    #     # 当前交易品种的有效交易日历
-    #     today = self.xctus_last_date
-    #     tstart = max([limit_start, start_dt])
-    #     tend = min([limit_end, end_dt, today])
-    #
-    #     trade_cal = self.trade_cal_index
-    #     vdates = trade_cal[(trade_cal >= tstart) & (trade_cal <= tend)]
-    #     return vdates
 
     def get_price_daily(self, code, start: str, end: str, astype=None, flag=IOFLAG.READ_XC):
         """
@@ -84,7 +38,7 @@ class XcReaderPrice(object):
 
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.xctus_last_date)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal_index)
         if len(vdates) == 0:
             return None
 
@@ -108,7 +62,7 @@ class XcReaderPrice(object):
                 if val is not None:
                     out[dtkey] = val
                     continue
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             for dd in vdates:
                 dtkey = dd.strftime(DATE_FORMAT)
                 ii = self.netloader.set_price_daily(code, MONTH_START(dd), MONTH_END(dd), astype)
@@ -156,12 +110,12 @@ class XcReaderPrice(object):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype),
-                                self.trade_cal_index, self.xctus_last_date)
+                                self.trade_cal_index)
         if len(vdates) == 0:
             return None
 
-        db = self.facc( (TusSdbs.SDB_MINUTE_PRICE.value + code + curfreq), EQUITY_MINUTE_PRICE_META,
-                        readonly=True)
+        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + curfreq), EQUITY_MINUTE_PRICE_META,
+                       readonly=True)
 
         out = {}
 
@@ -181,7 +135,7 @@ class XcReaderPrice(object):
                 if val is not None:
                     out[dtkey] = val
                     continue
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             for dd in vdates:
                 dtkey = dd.strftime(DATE_FORMAT)
                 ii = self.netloader.set_price_minute(code, dd, dd, curfreq, astype)
@@ -222,11 +176,11 @@ class XcReaderPrice(object):
         """
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.xctus_last_date)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
         if len(vdates) == 0:
             return
 
-        db = self.facc( TusSdbs.SDB_STOCK_DAILY_INFO.value + code, STOCK_DAILY_INFO_META)
+        db = self.facc(TusSdbs.SDB_STOCK_DAILY_INFO.value + code, STOCK_DAILY_INFO_META)
         out = {}
 
         if flag == IOFLAG.READ_XC:
@@ -245,7 +199,7 @@ class XcReaderPrice(object):
                 if val is not None:
                     out[dtkey] = val
                     continue
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             for dd in vdates:
                 dtkey = dd.strftime(DATE_FORMAT)
                 ii = self.netloader.set_stock_daily_info(code, MONTH_START(dd), MONTH_END(dd))
@@ -275,11 +229,11 @@ class XcReaderPrice(object):
         """
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.xctus_last_date)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
         if len(vdates) == 0:
             return
 
-        db = self.facc( TusSdbs.SDB_STOCK_ADJFACTOR.value + code, STOCK_ADJFACTOR_META, readonly=True)
+        db = self.facc(TusSdbs.SDB_STOCK_ADJFACTOR.value + code, STOCK_ADJFACTOR_META, readonly=True)
         out = {}
 
         if flag == IOFLAG.READ_XC:
@@ -298,7 +252,7 @@ class XcReaderPrice(object):
                 if val is not None:
                     out[dtkey] = val
                     continue
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             for dd in vdates:
                 dtkey = dd.strftime(DATE_FORMAT)
                 ii = self.netloader.set_stock_adjfactor(code, MONTH_START(dd), MONTH_END(dd))
@@ -321,7 +275,7 @@ class XcReaderPrice(object):
         :param code:
         :return:
         """
-        db = self.facc( TusSdbs.SDB_STOCK_XDXR.value, STOCK_XDXR_META)
+        db = self.facc(TusSdbs.SDB_STOCK_XDXR.value, STOCK_XDXR_META)
 
         kk = code
         if flag == IOFLAG.READ_XC:
@@ -333,7 +287,7 @@ class XcReaderPrice(object):
         elif flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_stock_xdxr(code)
             return db.save(kk, info)
         return
@@ -345,7 +299,7 @@ class XcReaderPrice(object):
         :param code:
         :return:
         """
-        db = self.facc( TusSdbs.SDB_STOCK_SUSPEND.value, STOCK_SUSPEND_META, readonly=True)
+        db = self.facc(TusSdbs.SDB_STOCK_SUSPEND.value, STOCK_SUSPEND_META, readonly=True)
 
         kk = code
         if flag == IOFLAG.READ_XC:
@@ -357,12 +311,12 @@ class XcReaderPrice(object):
         elif flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_stock_suspend(code)
             return db.save(kk, info)
         return
 
-    def get_suspend_d(self, start='19900101', end='21000101', flag=IOFLAG.READ_XC):
+    def get_suspend_d(self, start='20100101', end='21000101', flag=IOFLAG.READ_XC):
         """
         股票停复牌信息
         注： 股票存在停牌半天的情况。但也会在suspend列表中体现
@@ -376,7 +330,7 @@ class XcReaderPrice(object):
         if len(vdates) == 0:
             return None
 
-        db = self.facc( TusSdbs.SDB_SUSPEND_D.value, SUSPEND_D_META)
+        db = self.facc(TusSdbs.SDB_SUSPEND_D.value, SUSPEND_D_META)
         out = {}
 
         if flag == IOFLAG.READ_DBONLY:
@@ -395,7 +349,7 @@ class XcReaderPrice(object):
                     continue
                 ii = self.netloader.set_suspend_d(dd)
                 out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             for dd in vdates:
                 dtkey = dd.strftime(DATE_FORMAT)
                 ii = self.netloader.set_suspend_d(dd)
@@ -413,25 +367,33 @@ class XcReaderPrice(object):
         all_out = all_out.loc[pd.IndexSlice[tstart:tend, :]]
         # mask = all_out.index.map(lambda x: (x[0]>=tstart) & (x[0]<=tend))
         # all_out = all_out.loc[mask]
+        self.suspend_info = all_out
         return all_out
 
-    @lazyval
-    def suspend_info(self):
-        """"""
-        log.info('Load stock suspend info.')
-        return self.get_suspend_d()
+    def stock_suspend(self, code):
+        try:
+            info = self.suspend_info.loc[pd.IndexSlice[:, code], :]
+            return info
+        except:
+            return None
+
+    # @lazyval
+    # def suspend_info(self):
+    #     """"""
+    #     log.info('Load stock suspend info.')
+    #     return self.get_suspend_d()
 
 
 class XcEraserPrice(object):
     def erase_price_daily(self, code, start, end, astype):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.xctus_last_date)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal_index)
         if len(vdates) == 0:
             return
 
-        db = self.facc( TusSdbs.SDB_DAILY_PRICE.value + code,
-                        EQUITY_DAILY_PRICE_META)
+        db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code,
+                       EQUITY_DAILY_PRICE_META)
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
             db.remove(dtkey)
@@ -444,12 +406,12 @@ class XcEraserPrice(object):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype),
-                                self.trade_cal_index, self.xctus_last_date)
+                                self.trade_cal_index)
         if len(vdates) == 0:
             return
 
-        db = self.facc( (TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
-                        EQUITY_MINUTE_PRICE_META)
+        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
+                       EQUITY_MINUTE_PRICE_META)
 
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
@@ -466,12 +428,12 @@ class XcEraserPrice(object):
         """
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.xctus_last_date)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
         if len(vdates) == 0:
             return
 
-        db = self.facc( (TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
-                        STOCK_DAILY_INFO_META)
+        db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
+                       STOCK_DAILY_INFO_META)
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
             db.remove(dtkey)
@@ -487,12 +449,12 @@ class XcEraserPrice(object):
         """
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.xctus_last_date)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
         if len(vdates) == 0:
             return
 
-        db = self.facc( (TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
-                        STOCK_ADJFACTOR_META)
+        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
+                       STOCK_ADJFACTOR_META)
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
             db.remove(dtkey)

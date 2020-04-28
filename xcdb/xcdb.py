@@ -75,16 +75,17 @@ class KVTYPE(IntEnum):
 
 
 class IOFLAG(IntEnum):
-    READ_DBONLY = 0   # Read from cache only
-    READ_XC = 1   # Read from cache, if miss, load from remote
-    READ_NETONLY = 2  # Read from remote only
+    READ_DBONLY = 0  # Read from DB cache only
+    READ_XC = 1  # Read from BD cache, if miss, load from NET
+    READ_NETDB = 2  # Read from Net first, then flush to DB.
+    # READ_NETONLY = 3   # Read from Net only, not flush to DB.
 
     ERASE = 10  # Erase range
-    ERASE_ALL = 11 # Erase SDB
+    ERASE_ALL = 11  # Erase SDB
 
-    UPDATE_MISS = 20   # Update missed/NA data
+    UPDATE_MISS = 20  # Update missed/NA data
     UPDATE_INVALID = 21  # Update invalid&missed data
-    UPDATE_ALL = 23    # Update all data
+    UPDATE_ALL = 23  # Update all data
 
 
 """
@@ -147,7 +148,7 @@ class XcAccessor(object):
             elif vtype == KVTYPE.TPV_NARR_2D:
                 if isinstance(val, pd.DataFrame):
                     if val.empty:
-                        return NOT_EXIST,np.empty((0, len(self.metadata['columns'])))
+                        return NOT_EXIST, np.empty((0, len(self.metadata['columns'])))
                     if self.metadata:
                         val = val.reindex(columns=self.metadata['columns'])
                     return pickle.dumps(val.values), val.values
@@ -253,4 +254,3 @@ class XcAccessor(object):
     @abstractmethod
     def load_range(self, kstart, kend, vtype):
         """"""
-

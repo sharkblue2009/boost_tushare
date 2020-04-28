@@ -10,39 +10,50 @@ log = logbook.Logger('tupd')
 
 
 class XcUpdaterPrice(object):
+    """
+    rollback: rollback data units to do integrity check when updating
+    """
     netloader: TusNetLoader = None
     master_db = None
     suspend_info = None
     trade_cal_index: pd.DatetimeIndex = None
-    xctus_last_date: None
 
-    def _integrity_check_km_vday(self, code, dt, dtval):
+    rollback = 3
+
+    @staticmethod
+    def _integrity_check_km_vday(dt, dtval, trade_days, susp_info=None, code=None):
         """
         monthly key with daily data. use suspend information to check if the data is integrate
-        :param code: ts code
-        :param dt: list of date keys
-        :param dtval: list of values
+        :param dt: date keys
+        :param dtval: values
         :return:
         """
         if dtval is None:
             return False
 
-        trd_cal = self.trade_cal_index
-        susp_info = self.suspend_info.loc[pd.IndexSlice[:, code]]
+        # trade_days = self.trade_cal_index
+        # susp_info = self.suspend_info.loc[pd.IndexSlice[:, code]]
 
-        trd_days = trd_cal[(trd_cal >= MONTH_START(dt)) & (trd_cal <= MONTH_END(dt))]
-        susp = susp_info[(susp_info >= MONTH_START(dt)) & (susp_info <= MONTH_END(dt))]
-        susp = susp.loc[(susp['suspend_type'] == 'S') & (susp['suspend_timing'].isna()), :]
-        if len(trd_days) <= len(dtval) + len(susp):
+        trdays = trade_days[(trade_days >= MONTH_START(dt)) & (trade_days <= MONTH_END(dt))]
+        if susp_info is None:
+            expect_size = len(trdays)
+        else:
+            susp = susp_info[(susp_info >= MONTH_START(dt)) & (susp_info <= MONTH_END(dt))]
+            susp = susp.loc[(susp['suspend_type'] == 'S') & (susp['suspend_timing'].isna()), :]
+            expect_size = len(trdays) - len(susp)
+
+        if expect_size <= len(dtval):
             # 股票存在停牌半天的情况，也会被计入suspend列表
             bvalid = True
         else:
             bvalid = False
-            log.info('[!KMVDAY]: {}-{}:: {}-{}-{} '.format(code, dt, len(trd_days), len(susp), len(dtval)))
+            if susp_info is not None:
+                log.info('[!KMVDAY]:{}-{}:: t{}-v{}-s{} '.format(code, dt, len(trdays), len(susp), len(dtval)))
 
         return bvalid
 
-    def _integrity_check_kd_vday(self, dt, dtval):
+    @staticmethod
+    def _integrity_check_kd_vday(dt, dtval, trade_days):
         """
         daily key with daily data.
         :param code: ts code
@@ -53,17 +64,16 @@ class XcUpdaterPrice(object):
         if dtval is None:
             return False
 
-        tcal_idx = self.trade_cal_index
-        if dt in tcal_idx:
+        if dt in trade_days:
             return True
 
         log.info('[!KDVDAY]: {}'.format(dt))
         return False
 
-    def _integrity_check_kd_vmin(self, code, dt, dtval, freq='1min'):
+    @staticmethod
+    def _integrity_check_kd_vmin(dt, dtval, trade_days, susp_info=None, freq='1min', code=None):
         """
         daily key with minute data, use suspend information to judge if the data should exist,
-        :param code: ts code
         :param dt: date keys
         :param dtval:  values
         :return:
@@ -71,15 +81,15 @@ class XcUpdaterPrice(object):
         if dtval is None:
             return False
 
-        trd_cal = self.trade_cal_index
-        susp_info = self.suspend_info.loc[pd.IndexSlice[:, code]]
+        # trdays = self.trade_cal_index
+        # susp_info = self.suspend_info.loc[pd.IndexSlice[:, code]]
 
         cc = {'1min': 241, '5min': 49, '15min': 17, '30min': 9, '60min': 5, '120min': 3}
         nbars = cc[freq]
 
         b_vld = False
 
-        if dt in trd_cal:
+        if dt in trade_days:
             susp = susp_info.loc[(susp_info['suspend_type'] == 'S') & (susp_info.index == dt), :]
             data = dtval
             if not susp.empty:
@@ -94,11 +104,9 @@ class XcUpdaterPrice(object):
             else:
                 if len(data) == nbars:
                     b_vld = True
-        else:
-            log.warning('[!KDVMIN]-Wrong data:{}-{}'.format(code, dt))
 
-        if not b_vld:
-            log.info('[!KDVMIN]-: {}-{}:: {}-{} '.format(code, dt, len(susp), len(data)))
+            if not b_vld and susp_info is not None:
+                log.info('[!KDVMIN]-: {}-{}:: {}-{} '.format(code, dt, len(susp), len(data)))
 
         return b_vld
 
@@ -116,7 +124,7 @@ class XcUpdaterPrice(object):
             return 0
 
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
-        db = self.facc( TusSdbs.SDB_SUSPEND_D.value, SUSPEND_D_META)
+        db = self.facc(TusSdbs.SDB_SUSPEND_D.value, SUSPEND_D_META)
 
         if flag == IOFLAG.UPDATE_MISS:
             for n, dd in enumerate(vdates):
@@ -151,12 +159,12 @@ class XcUpdaterPrice(object):
         :param code:
         :param start:
         :param end:
-        :param mode: -1: erase, 0: update from last valid, 1: update all
+        :param flag:
         :return:
         """
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.xctus_last_date)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal_index)
         if len(vdates) == 0:
             return 0
 
@@ -164,7 +172,7 @@ class XcUpdaterPrice(object):
         # trd_cal = self.trade_cal_index
         # susp_info = self.suspend_info.loc[pd.IndexSlice[:, code]]
 
-        db = self.facc( TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
+        db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
 
         if flag == IOFLAG.UPDATE_MISS:
@@ -173,13 +181,18 @@ class XcUpdaterPrice(object):
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
                 if val is not None:
                     bvalid[n] = True
+                    if n >= len(vdates) - self.rollback:
+                        bvalid[n] = self._integrity_check_km_vday(dd, val, self.trade_cal_index,
+                                                                  self.stock_suspend(code), code)
                 else:
                     bvalid[n] = False
+
         elif flag == IOFLAG.UPDATE_INVALID:
             for n, dd in enumerate(vdates):
                 dtkey = dd.strftime(DATE_FORMAT)
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                bvalid[n] = self._integrity_check_km_vday(code, dd, val)
+                bvalid[n] = self._integrity_check_km_vday(dd, val, self.trade_cal_index,
+                                                          self.stock_suspend(code))
         elif flag == IOFLAG.UPDATE_ALL:
             bvalid[:] = False
 
@@ -187,7 +200,7 @@ class XcUpdaterPrice(object):
 
         db.commit()
         # Reopen Accessor
-        db = self.facc( TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
+        db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
         need_update = nadata_iter(bvalid, 50)
         while True:
             tstart, tend = next(need_update)
@@ -207,7 +220,7 @@ class XcUpdaterPrice(object):
         :param start:
         :param end:
         :param freq:
-        :param mode: -1: erase, 0: update from last valid, 1: update all
+        :param flag:
         :return:
         """
         if freq not in ['1min', '5min', '15min', '30min', '60min', '120m']:
@@ -216,11 +229,11 @@ class XcUpdaterPrice(object):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype),
-                                self.trade_cal_index, self.xctus_last_date)
+                                self.trade_cal_index)
 
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
-        db = self.facc( (TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
-                        EQUITY_MINUTE_PRICE_META, readonly=True)
+        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
+                       EQUITY_MINUTE_PRICE_META, readonly=True)
 
         if flag == IOFLAG.UPDATE_MISS:
             for n, dd in enumerate(vdates):
@@ -228,20 +241,23 @@ class XcUpdaterPrice(object):
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
                 if val is not None:
                     bvalid[n] = True
+                    if n >= len(vdates) - self.rollback:
+                        bvalid[n] = self._integrity_check_kd_vmin(dd, val, self.trade_cal_index,
+                                                                  self.stock_suspend(code), freq=freq, code=code)
                 else:
                     bvalid[n] = False
         elif flag == IOFLAG.UPDATE_INVALID:
             for n, dd in enumerate(vdates):
                 dtkey = dd.strftime(DATE_FORMAT)
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                bvalid[n] = self._integrity_check_kd_vmin(code, dd, val)
+                bvalid[n] = self._integrity_check_kd_vmin(dd, val, self.stock_suspend(code), freq=freq, code=code)
         elif flag == IOFLAG.UPDATE_ALL:
             bvalid[:] = False
 
         count = np.sum(~bvalid)
         db.commit()
-        db = self.facc( (TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
-                        EQUITY_MINUTE_PRICE_META)
+        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
+                       EQUITY_MINUTE_PRICE_META)
         need_update = nadata_iter(bvalid, 12)
         while True:
             tstart, tend = next(need_update)
@@ -266,13 +282,13 @@ class XcUpdaterPrice(object):
         """
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.xctus_last_date)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
         if len(vdates) == 0:
             return 0
 
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
-        db = self.facc( (TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
-                        STOCK_ADJFACTOR_META)
+        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
+                       STOCK_ADJFACTOR_META)
 
         if flag == IOFLAG.UPDATE_MISS:
             for n, dd in enumerate(vdates):
@@ -280,20 +296,24 @@ class XcUpdaterPrice(object):
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
                 if val is not None:
                     bvalid[n] = True
+                    if n == len(vdates) - self.rollback:
+                        bvalid[n] = self._integrity_check_km_vday(dd, val, self.trade_cal_index,
+                                                                  self.stock_suspend(code), code)
                 else:
                     bvalid[n] = False
         elif flag == IOFLAG.UPDATE_INVALID:
             for n, dd in enumerate(vdates):
                 dtkey = dd.strftime(DATE_FORMAT)
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                bvalid[n] = self._integrity_check_km_vday(code, dd, val)
+                bvalid[n] = self._integrity_check_km_vday(dd, val, self.trade_cal_index,
+                                                          self.stock_suspend(code))
         elif flag == IOFLAG.UPDATE_ALL:
             bvalid[:] = False
 
         count = np.sum(~bvalid)
         db.commit()
-        db = self.facc( (TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
-                        STOCK_ADJFACTOR_META)
+        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
+                       STOCK_ADJFACTOR_META)
         need_update = nadata_iter(bvalid, 50)
         while True:
             tstart, tend = next(need_update)
@@ -317,12 +337,12 @@ class XcUpdaterPrice(object):
         """
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.xctus_last_date)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
         if len(vdates) == 0:
             return 0
 
-        db = self.facc( (TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
-                        STOCK_DAILY_INFO_META)
+        db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
+                       STOCK_DAILY_INFO_META)
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
 
         if flag == IOFLAG.UPDATE_MISS:
@@ -331,20 +351,24 @@ class XcUpdaterPrice(object):
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
                 if val is not None:
                     bvalid[n] = True
+                    if n == len(vdates) - self.rollback:
+                        bvalid[n] = self._integrity_check_km_vday(dd, val, self.trade_cal_index,
+                                                                  self.stock_suspend(code), code)
                 else:
                     bvalid[n] = False
         elif flag == IOFLAG.UPDATE_INVALID:
             for n, dd in enumerate(vdates):
                 dtkey = dd.strftime(DATE_FORMAT)
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                bvalid[n] = self._integrity_check_km_vday(code, dd, val)
+                bvalid[n] = self._integrity_check_km_vday(dd, val, self.trade_cal_index,
+                                                          self.stock_suspend(code))
         elif flag == IOFLAG.UPDATE_ALL:
             bvalid[:] = False
 
         count = np.sum(~bvalid)
         db.commit()
-        db = self.facc( (TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
-                        STOCK_DAILY_INFO_META)
+        db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
+                       STOCK_DAILY_INFO_META)
         need_update = nadata_iter(bvalid, 50)
         while True:
             tstart, tend = next(need_update)

@@ -23,7 +23,13 @@ class XcReaderBasic(object):
 
     @lazyval
     def trade_cal_index(self):
-        return pd.to_datetime(self.trade_cal.tolist(), format='%Y%m%d')
+        """
+        当前有效的交易日历
+        :return:
+        """
+        all_trade_cal = pd.to_datetime(self.trade_cal.tolist(), format='%Y%m%d')
+        valid_trade_cal = all_trade_cal[all_trade_cal < self.xctus_last_date]
+        return valid_trade_cal
 
     @lazyval
     def trade_cal_index_minutes(self):
@@ -75,7 +81,6 @@ class XcReaderBasic(object):
         elif astype == 'FD':
             info = self.fund_info
 
-
         start_date = info.loc[code, 'start_date']
         end_date = info.loc[code, 'end_date']
         start_date, end_date = pd.Timestamp(start_date), pd.Timestamp(end_date)
@@ -85,8 +90,8 @@ class XcReaderBasic(object):
     # Reader API
     ##########################################################
     def get_trade_cal(self, flag=IOFLAG.READ_XC):
-        db = self.facc( TusSdbs.SDB_TRADE_CALENDAR.value,
-                        TRD_CAL_META)
+        db = self.facc(TusSdbs.SDB_TRADE_CALENDAR.value,
+                       TRD_CAL_META)
         kk = 'trade_cal'
         if flag == IOFLAG.READ_XC:
             val = db.load(kk)
@@ -97,7 +102,7 @@ class XcReaderBasic(object):
         elif flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_trade_cal()
             return db.save(kk, info)
         return
@@ -107,7 +112,7 @@ class XcReaderBasic(object):
 
         :return:
         """
-        db = self.facc( TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
+        db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
         kk = TusKeys.INDEX_INFO.value
 
         if flag == IOFLAG.READ_XC:
@@ -119,14 +124,14 @@ class XcReaderBasic(object):
         elif flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_index_info()
             return db.save(kk, info)
         return
 
     def get_stock_info(self, flag=IOFLAG.READ_XC):
         """"""
-        db = self.facc( TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
+        db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
         kk = TusKeys.STOCK_INFO.value
 
         if flag == IOFLAG.READ_XC:
@@ -138,7 +143,7 @@ class XcReaderBasic(object):
         elif flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_stock_info()
             return db.save(kk, info)
         return
@@ -148,7 +153,7 @@ class XcReaderBasic(object):
 
         :return:
         """
-        db = self.facc( TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
+        db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
         kk = TusKeys.FUND_INFO.value
 
         if flag == IOFLAG.READ_XC:
@@ -160,7 +165,7 @@ class XcReaderBasic(object):
         elif flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_fund_info()
             return db.save(kk, info)
         return
@@ -179,7 +184,7 @@ class XcReaderBasic(object):
             return
         dtkey = last_tdday.strftime(DATE_FORMAT)
 
-        db = self.facc( (TusSdbs.SDB_INDEX_WEIGHT.value + index_symbol), INDEX_WEIGHT_META)
+        db = self.facc((TusSdbs.SDB_INDEX_WEIGHT.value + index_symbol), INDEX_WEIGHT_META)
         if flag == IOFLAG.READ_XC:
             val = db.load(dtkey)
             if val is not None:
@@ -189,11 +194,10 @@ class XcReaderBasic(object):
         elif flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_index_weight(index_symbol, last_tdday)
             return db.save(dtkey, info)
         return
-
 
     def get_index_classify(self, level, src='SW', flag=IOFLAG.READ_XC):
         """
@@ -203,7 +207,7 @@ class XcReaderBasic(object):
         描述：获取申万行业分类，包括申万28个一级分类，104个二级分类，227个三级分类的列表信息
         :return:
         """
-        db = self.facc( TusSdbs.SDB_INDEX_CLASSIFY.value, INDEX_CLASSIFY_META, readonly=True)
+        db = self.facc(TusSdbs.SDB_INDEX_CLASSIFY.value, INDEX_CLASSIFY_META, readonly=True)
 
         kk = level.upper()
 
@@ -216,7 +220,7 @@ class XcReaderBasic(object):
         elif flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_index_classify(level, src)
             return db.save(kk, info)
         return
@@ -227,7 +231,7 @@ class XcReaderBasic(object):
         :param index_code:
         :return:
         """
-        db = self.facc( TusSdbs.SDB_INDEX_MEMBER.value, INDEX_MEMBER_META)
+        db = self.facc(TusSdbs.SDB_INDEX_MEMBER.value, INDEX_MEMBER_META)
 
         kk = index_code.upper()
 
@@ -240,7 +244,7 @@ class XcReaderBasic(object):
         elif flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             return val
-        elif flag == IOFLAG.READ_NETONLY:
+        elif flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_index_member(index_code)
             return db.save(kk, info)
         return
