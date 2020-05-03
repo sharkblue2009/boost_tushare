@@ -373,6 +373,7 @@ class XcReaderPrice(object):
     def stock_suspend(self, code):
         try:
             info = self.suspend_info.loc[pd.IndexSlice[:, code], :]
+            info = info.droplevel(1)  # Drop the tscode index
             return info
         except:
             return None

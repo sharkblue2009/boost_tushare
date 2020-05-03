@@ -113,7 +113,7 @@ class XcNLBasic(object):
             # info.loc[:, 'con_code'] = info['con_code'].apply(symbol_tus_to_std)
             info = info[info['trade_date'] == valid_day]
             return info
-        return None
+        return info
 
     def set_index_classify(self, level, src='SW'):
         """
@@ -138,7 +138,7 @@ class XcNLBasic(object):
         if not info.empty:
             # info.loc[:, 'con_code'] = info['con_code'].apply(symbol_tus_to_std)
             return info
-        return None
+        return info
 
 
 class XcNLPrice(object):

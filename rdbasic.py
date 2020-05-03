@@ -1,7 +1,7 @@
 """
 基础数据，不定期更新
 """
-from .utils.xcutils import session_day_to_min_tus, MONTH_END
+from .utils.xcutils import session_day_to_min_tus, MONTH_END, MONTH_START
 from cntus.xcdb.xcdb import *
 from .schema import *
 import pandas as pd
@@ -170,32 +170,36 @@ class XcReaderBasic(object):
             return db.save(kk, info)
         return
 
-    def get_index_weight(self, index_symbol, date, flag=IOFLAG.READ_XC):
+    def get_index_weight(self, index_symbol, date, month_start=False, flag=IOFLAG.READ_XC):
         """
         tushare index_weight数据, 月初第一个交易日和月末最后一个交易日更新(20200318: 只有月末最后一个交易日更新数据？)
         :param index_symbol:
         :param date:
+        :param month_start: use month start or month end data.
         :return:
         """
         # 找到所处月份的第一个交易日
         trdt = pd.Timestamp(date)
-        last_tdday = MONTH_END(trdt, self.trade_cal_index)
-        if last_tdday is None:
+        if month_start:
+            tdday = MONTH_START(trdt, self.trade_cal_index)
+        else:
+            tdday = MONTH_END(trdt, self.trade_cal_index)
+        if tdday is None:
             return
-        dtkey = last_tdday.strftime(DATE_FORMAT)
+        dtkey = tdday.strftime(DATE_FORMAT)
 
         db = self.facc((TusSdbs.SDB_INDEX_WEIGHT.value + index_symbol), INDEX_WEIGHT_META)
         if flag == IOFLAG.READ_XC:
             val = db.load(dtkey)
             if val is not None:
                 return val
-            info = self.netloader.set_index_weight(index_symbol, last_tdday)
+            info = self.netloader.set_index_weight(index_symbol, tdday)
             return db.save(dtkey, info)
         elif flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val
         elif flag == IOFLAG.READ_NETDB:
-            info = self.netloader.set_index_weight(index_symbol, last_tdday)
+            info = self.netloader.set_index_weight(index_symbol, tdday)
             return db.save(dtkey, info)
         return
 

@@ -38,7 +38,7 @@ class XcUpdaterPrice(object):
         if susp_info is None:
             expect_size = len(trdays)
         else:
-            susp = susp_info[(susp_info >= MONTH_START(dt)) & (susp_info <= MONTH_END(dt))]
+            susp = susp_info[(susp_info.index >= MONTH_START(dt)) & (susp_info.index <= MONTH_END(dt))]
             susp = susp.loc[(susp['suspend_type'] == 'S') & (susp['suspend_timing'].isna()), :]
             expect_size = len(trdays) - len(susp)
 
@@ -90,20 +90,24 @@ class XcUpdaterPrice(object):
         b_vld = False
 
         if dt in trade_days:
-            susp = susp_info.loc[(susp_info['suspend_type'] == 'S') & (susp_info.index == dt), :]
             data = dtval
-            if not susp.empty:
-                if susp['suspend_timing'].isna():  # .iloc[-1]
-                    # 当日全天停牌
-                    if len(data) == nbars or len(data) == 0:
-                        b_vld = True
-                else:
-                    # 部分时间停牌
-                    if len(data) < nbars:
-                        b_vld = True
-            else:
+            if susp_info is None:
                 if len(data) == nbars:
                     b_vld = True
+            else:
+                susp = susp_info.loc[(susp_info['suspend_type'] == 'S') & (susp_info.index == dt), :]
+                if not susp.empty:
+                    if susp['suspend_timing'].isna():  # .iloc[-1]
+                        # 当日全天停牌
+                        if len(data) == nbars or len(data) == 0:
+                            b_vld = True
+                    else:
+                        # 部分时间停牌
+                        if len(data) < nbars:
+                            b_vld = True
+                else:
+                    if len(data) == nbars:
+                        b_vld = True
 
             if not b_vld and susp_info is not None:
                 log.info('[!KDVMIN]-: {}-{}:: {}-{} '.format(code, dt, len(susp), len(data)))
