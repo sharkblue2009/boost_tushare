@@ -22,17 +22,22 @@ class XcTusReader(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice)
     def netloader(self) -> TusNetLoader:
         return get_netloader()
 
-    def __init__(self, xctus_last_date=None):
+    def __init__(self, xctus_last_date=None, xctus_lmdb=True):
         """
         :param xctus_last_date: Tushare last date with data available,
                             we assume yesterday's data is available in today.
         """
-        self.master_db = XcLMDB(LMDB_NAME, readonly=False)
-        self.acc = XcLMDBAccessor
-        self.facc = partial(XcLMDBAccessor, self.master_db)
+        if xctus_lmdb:
+            self.master_db = XcLMDB(LMDB_NAME, readonly=False)
+            self.acc = XcLMDBAccessor
+            self.facc = partial(XcLMDBAccessor, self.master_db)
 
-        # , write_buffer_size = 0x400000, block_size = 0x4000,
-        # max_file_size = 0x1000000, lru_cache_size = 0x100000, bloom_filter_bits = 0
+            # , write_buffer_size = 0x400000, block_size = 0x4000,
+            # max_file_size = 0x1000000, lru_cache_size = 0x100000, bloom_filter_bits = 0
+        else:
+            self.master_db = XcLevelDB(LEVELDB_NAME, readonly=False)
+            self.acc = XcLevelDBAccessor
+            self.facc = partial(XcLevelDBAccessor, self.master_db)
 
         if xctus_last_date is None:
             self.xctus_last_date = pd.Timestamp.today().normalize() #- pd.Timedelta(days=1)

@@ -52,9 +52,14 @@ def MONTH_START(date, trade_days=None):
     if trade_days is None:
         return mday
 
-    mday = trade_days[trade_days >= mday][0]
+    mdays = trade_days[trade_days >= mday]
+    if len(mdays) == 0:
+        return None
+
+    mday = mdays[0]
     if (mday.year == dd.year) and (mday.month == dd.month):
         return mday
+
     return None
 
 
@@ -64,7 +69,11 @@ def MONTH_END(date, trade_days=None):
     if trade_days is None:
         return mday
 
-    mday = trade_days[trade_days <= mday][-1]
+    mdays = trade_days[trade_days <= mday]
+    if len(mdays) == 0:
+        return None
+
+    mday = mdays[-1]
     if (mday.year == dd.year) and (mday.month == dd.month):
         return mday
     return None
