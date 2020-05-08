@@ -127,6 +127,8 @@ class XcReaderPrice(object):
                     out[dtkey] = val
                     continue
                 ii = self.netloader.set_price_minute(code, dd, dd, curfreq, astype)
+                if ii is None:
+                    continue
                 out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
         elif flag == IOFLAG.READ_DBONLY:
             for dd in vdates:
@@ -139,6 +141,8 @@ class XcReaderPrice(object):
             for dd in vdates:
                 dtkey = dd.strftime(DATE_FORMAT)
                 ii = self.netloader.set_price_minute(code, dd, dd, curfreq, astype)
+                if ii is None:
+                    continue
                 out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
 
         out = list(out.values())

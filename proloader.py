@@ -181,7 +181,8 @@ class XcNLPrice(object):
             data = data.rename(columns={'vol': 'volume'})
             # convert %Y-%m-%d %H:%M:%S to %Y%m%d %H:%M:%S
             data['trade_time'] = data['trade_time'].apply(lambda x: x.replace('-', ''))
-
+        else:
+            print('min_data: {}, {}-{}'.format(code, start_raw, end_raw))
         return data
 
     def set_stock_daily_info(self, code, start, end):

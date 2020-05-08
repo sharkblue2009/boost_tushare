@@ -269,6 +269,8 @@ class XcUpdaterPrice(object):
                 break
             dts_upd = vdates[tstart: tend + 1]
             data = self.netloader.set_price_minute(code, dts_upd[0], dts_upd[-1], freq)
+            if data is None:
+                continue
             for xx in dts_upd:
                 dtkey = xx.strftime(DATE_FORMAT)
                 xxd = data.loc[data['trade_time'].map(lambda x: x[:8] == dtkey[:8]), :]

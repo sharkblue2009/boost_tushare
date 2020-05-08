@@ -27,7 +27,7 @@ class XcLMDB(XCacheDB):
         if not self.name in DBS_OPENED.keys():
             log.info('Open DB: {}'.format(self.name))
             DBS_OPENED[self.name] = lmdb.open(
-                self.name, create=True, max_dbs=1000000, readonly=readonly, map_size=32 * 0x40000000, **kwargs)
+                self.name, create=True, max_dbs=1000000, readonly=readonly, map_size=64 * 0x40000000, **kwargs)
         else:
             raise FileExistsError('Already opened')
 
@@ -113,6 +113,8 @@ class XcLMDBAccessor(XcAccessor):
     def save(self, key, val, vtype=None):
         """"""
         # self.txn = self.master.env.begin(db=self.db, write=True)
+        if val is None:
+            return
         key = self.to_db_key(key)
         dbval, appval = self.to_val_in(val, vtype)
         if key and dbval:
