@@ -10,9 +10,9 @@ if __name__ == '__main__':
     zipline_logging.push_application()
 
     cntus_update_basic()
-    #
-    # cntus_update_stock_day(start_date='20140101')
-    # cntus_update_index_day(start_date='20190101')
+
+    cntus_update_stock_day(start_date='20140101')
+    cntus_update_index_day(start_date='20190101')
 
     cntus_update_stock_min(start_date='20190101')
 

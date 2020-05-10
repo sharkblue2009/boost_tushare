@@ -8,13 +8,14 @@ local cache for tushare(https://tushare.pro)data, database is LMDB/LevelDB
 - 集中下载支持，daily update.
 - 本地数据完整性检查。
 - 多线程更新。
+- 性能优化：加载2015年至2020全A股日线数据，约20秒。
 
-#API
+# API
 ## class TusXcReader
 ### Read APIs
 - Read mode flag: 
     + IOFLAG.READ_XC: Cache mode reading, load from DB first, if miss, load from network
-    + IOFLAG.READ_NETONLY: From network(tushare.pro) only
+    + IOFLAG.READ_NETDB: From network(tushare.pro), then flush to DB.
     + IOFLAG.READ_DBONLY: From database only
 
 - get_trade_cal
