@@ -298,7 +298,7 @@ class XcReaderPrice(object):
 
     def get_stock_suspend(self, code, flag=IOFLAG.READ_XC):
         """
-        股票停复牌信息
+        每只股票的停复牌信息
         注： 股票存在停牌半天的情况。但也会在suspend列表中体现
         :param code:
         :return:
@@ -322,7 +322,7 @@ class XcReaderPrice(object):
 
     def get_suspend_d(self, start='20100101', end='21000101', flag=IOFLAG.READ_XC):
         """
-        股票停复牌信息
+        每日所有股票停复牌信息
         注： 股票存在停牌半天的情况。但也会在suspend列表中体现
         :param code:
         :return:
