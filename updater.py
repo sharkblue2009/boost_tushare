@@ -205,7 +205,10 @@ class XcUpdaterPrice(object):
         db.commit()
         # Reopen Accessor
         db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
-        need_update = nadata_iter(bvalid, 50)
+
+        # 每次最大获取5000条记录
+        max_units = 4000//23
+        need_update = nadata_iter(bvalid, max_units)
         while True:
             tstart, tend = next(need_update)
             if tstart is None:
@@ -227,7 +230,7 @@ class XcUpdaterPrice(object):
         :param flag:
         :return:
         """
-        if freq not in ['1min', '5min', '15min', '30min', '60min', '120m']:
+        if freq not in ['1min', '5min', '15min', '30min', '60min', '120min']:
             return None
 
         tstart = pd.Timestamp(start)
@@ -262,7 +265,11 @@ class XcUpdaterPrice(object):
         db.commit()
         db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
                        EQUITY_MINUTE_PRICE_META)
-        need_update = nadata_iter(bvalid, 12)
+
+        # 每次最大获取8000条记录
+        cc = {'1min': 1, '5min': 5, '15min': 15, '30min': 30, '60min': 60, '120min': 120}
+        max_units = 5000//(240//cc[freq] + 1)
+        need_update = nadata_iter(bvalid, max_units)
         while True:
             tstart, tend = next(need_update)
             if tstart is None:
@@ -320,7 +327,9 @@ class XcUpdaterPrice(object):
         db.commit()
         db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
                        STOCK_ADJFACTOR_META)
-        need_update = nadata_iter(bvalid, 50)
+        # 每次最大获取5000条记录
+        max_units = 4000 // 23
+        need_update = nadata_iter(bvalid, max_units)
         while True:
             tstart, tend = next(need_update)
             if tstart is None:
@@ -375,7 +384,9 @@ class XcUpdaterPrice(object):
         db.commit()
         db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
                        STOCK_DAILY_INFO_META)
-        need_update = nadata_iter(bvalid, 50)
+        # 每次最大获取5000条记录
+        max_units = 4000 // 23
+        need_update = nadata_iter(bvalid, max_units)
         while True:
             tstart, tend = next(need_update)
             if tstart is None:

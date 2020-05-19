@@ -2,6 +2,7 @@ from cntus.xcreader import *
 import unittest
 from pandas.testing import assert_frame_equal
 
+
 def check_df_equal(x, y):
     try:
         assert_frame_equal(x, y, check_dtype=False)
@@ -106,6 +107,7 @@ class TestTusReader(unittest.TestCase):
         self.assertFalse(df1.empty)
         df2 = reader.get_fina_indicator(stk, start)
         self.assertTrue(check_df_equal(df1, df2))
+
     # def test_min_data_resample(self):
     #     reader = self.reader
     #     start_date = '20190101'
@@ -141,13 +143,13 @@ class TestTusReader(unittest.TestCase):
 
         print(timeit.Timer(lambda: reader.get_price_minute('002465.SZ', '20190101', '20200303')).timeit(10))
 
-    # def test_benchmark_all(self):
-    #     # print(timeit.Timer(lambda: get_all_price_day_parallel()).timeit(1))
-    #     print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
-    #
-    #     print(timeit.Timer(lambda: get_all_dayinfo()).timeit(1))
-    #
-    #     print(timeit.Timer(lambda: get_all_price_min()).timeit(1))
+    def test_benchmark_all(self):
+        # print(timeit.Timer(lambda: get_all_price_day_parallel()).timeit(1))
+        # print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
+        #
+        # print(timeit.Timer(lambda: get_all_dayinfo()).timeit(1))
+
+        print(timeit.Timer(lambda: get_all_price_min('20190501', '20200301')).timeit(1))
 
 
 #####################################################################
@@ -169,7 +171,6 @@ def get_all_price_day(start_date='20160101', end_date='20200101'):
 
 
 def get_all_price_day_parallel(start_date='20160101', end_date='20200101'):
-
     reader = get_tusreader()
 
     def _fetch(symbols):
@@ -209,7 +210,6 @@ def get_all_price_day_parallel(start_date='20160101', end_date='20200101'):
 
 
 def get_all_dayinfo(start_date='20160101', end_date='20200101'):
-
     reader = get_tusreader()
 
     df_stock = reader.get_stock_info()[:]
@@ -220,16 +220,13 @@ def get_all_dayinfo(start_date='20160101', end_date='20200101'):
 
 
 def get_all_price_min(start_date='20190101', end_date='20200101'):
-
     reader = get_tusreader()
 
     df_stock = reader.get_stock_info()[:]
-    print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+    print('get_min, total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
     for k, stk in df_stock['ts_code'].items():
         # log.info('-->{}'.format(stk))
-        reader.get_price_minute(stk, start_date, end_date)
-
-
+        reader.get_price_minute(stk, start_date, end_date, freq='5min')
 
 
 if __name__ == '__main__':

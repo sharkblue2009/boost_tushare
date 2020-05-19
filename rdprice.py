@@ -80,7 +80,7 @@ class XcReaderPrice(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
-    def get_price_minute(self, code, start, end, freq='1min', astype='E', resample=True, flag=IOFLAG.READ_XC):
+    def get_price_minute(self, code, start, end, freq='1min', astype='E', resample=False, flag=IOFLAG.READ_XC):
         """
         按日存取股票的分钟线数据
         1. 如当日停牌无交易，则存入空数据
@@ -96,6 +96,7 @@ class XcReaderPrice(object):
         :param start:
         :param end:
         :param freq:
+        :param astype: asset type. 'E' for stock, 'I' for index, 'FD' for fund.
         :param resample: if use 1Min data resample to others
         :return:
         """

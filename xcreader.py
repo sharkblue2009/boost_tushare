@@ -116,7 +116,7 @@ def cntus_update_stock_day(start_date='20150101'):
             t_end = ss['end_date']
 
             reader.get_stock_xdxr(stk, IOFLAG.READ_NETDB)
-            reader.update_stock_adjfactor(stk, t_start, t_end)
+            # reader.update_stock_adjfactor(stk, t_start, t_end)
             results[stk] = reader.update_stock_dayinfo(stk, t_start, t_end)
 
         return results
@@ -207,7 +207,7 @@ def cntus_update_stock_min(start_date='20190101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = reader.update_price_minute(stk, t_start, t_end, freq='1min', astype=astype,
+            results[stk] = reader.update_price_minute(stk, t_start, t_end, freq='5min', astype=astype,
                                                       flag=IOFLAG.UPDATE_MISS)
 
         return results
