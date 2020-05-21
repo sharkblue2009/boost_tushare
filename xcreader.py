@@ -40,7 +40,10 @@ class XcTusReader(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice)
             self.facc = partial(XcLevelDBAccessor, self.master_db)
 
         if xctus_last_date is None:
-            self.xctus_last_date = pd.Timestamp.today().normalize() #- pd.Timedelta(days=1)
+            """
+            Last date always point to the end of Today. but tushare data may not exist at this time.
+            """
+            self.xctus_last_date = pd.Timestamp.today().normalize() + pd.Timedelta(days=1)
         else:
             self.xctus_last_date = xctus_last_date
 
