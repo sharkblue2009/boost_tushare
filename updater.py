@@ -207,14 +207,14 @@ class XcUpdaterPrice(object):
         db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
 
         # 每次最大获取5000条记录
-        max_units = 4000//23
+        max_units = 4700//23
         need_update = nadata_iter(bvalid, max_units)
         while True:
             tstart, tend = next(need_update)
             if tstart is None:
                 break
             dts_upd = vdates[tstart: tend + 1]
-            data = self.netloader.set_price_daily(code, MONTH_START(dts_upd[0]), MONTH_END(dts_upd[-1]))
+            data = self.netloader.set_price_daily(code, MONTH_START(dts_upd[0]), MONTH_END(dts_upd[-1]), astype)
             for xx in dts_upd:
                 dtkey = xx.strftime(DATE_FORMAT)
                 xxd = data.loc[data['trade_date'].map(lambda x: x[:6] == dtkey[:6]), :]
@@ -268,7 +268,7 @@ class XcUpdaterPrice(object):
 
         # 每次最大获取8000条记录
         cc = {'1min': 1, '5min': 5, '15min': 15, '30min': 30, '60min': 60, '120min': 120}
-        max_units = 5000//(240//cc[freq] + 1)
+        max_units = 6000//(240//cc[freq] + 1)
         need_update = nadata_iter(bvalid, max_units)
         while True:
             tstart, tend = next(need_update)
@@ -385,7 +385,7 @@ class XcUpdaterPrice(object):
         db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
                        STOCK_DAILY_INFO_META)
         # 每次最大获取5000条记录
-        max_units = 4000 // 23
+        max_units = 4700 // 23
         need_update = nadata_iter(bvalid, max_units)
         while True:
             tstart, tend = next(need_update)

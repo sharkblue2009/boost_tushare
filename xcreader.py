@@ -90,6 +90,7 @@ def cntus_update_basic():
     reader.get_fund_info(IOFLAG.READ_NETDB)
     reader.get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
     reader.get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
+    log.info('Finished')
     return
 
 
@@ -171,8 +172,6 @@ def cntus_update_index_day(start_date):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            if astype == 'E':
-                reader.update_suspend(stk, t_start, t_end)
             results[stk] = reader.update_price_daily(stk, t_start, t_end, astype)
 
         return results

@@ -12,7 +12,7 @@ if __name__ == '__main__':
     cntus_update_basic()
 
     cntus_update_stock_day(start_date='20130101')
-    cntus_update_index_day(start_date='20190101')
+    cntus_update_index_day(start_date='20180101')
 
     cntus_update_stock_min(start_date='20170101')
 

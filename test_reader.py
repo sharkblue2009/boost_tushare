@@ -83,6 +83,12 @@ class TestTusReader(unittest.TestCase):
         df = reader.get_stock_adjfactor(stk, start, end)
         self.assertFalse(df.empty)
 
+        stk = '000906.SH'
+        start = '20190101'
+        end = '20200310'
+        df = reader.get_price_daily(stk, start, end)
+        self.assertFalse(df.empty)
+
     def test_finance(self):
         reader = self.reader
         stk = '002465.SZ'
@@ -149,7 +155,8 @@ class TestTusReader(unittest.TestCase):
         #
         # print(timeit.Timer(lambda: get_all_dayinfo()).timeit(1))
 
-        print(timeit.Timer(lambda: get_all_price_min('20190501', '20200301')).timeit(1))
+        # print(timeit.Timer(lambda: get_all_price_min('20190501', '20200301')).timeit(1))
+        pass
 
 
 #####################################################################
