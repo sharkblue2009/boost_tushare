@@ -1,5 +1,5 @@
 from enum import Enum
-from cntus.xcdb.xcdb import KVTYPE
+from .xcdb.xcdb import KVTYPE
 
 
 class TusKeys(Enum):

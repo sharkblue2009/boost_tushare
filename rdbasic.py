@@ -2,7 +2,7 @@
 基础数据，不定期更新
 """
 from .utils.xcutils import session_day_to_min_tus, MONTH_END, MONTH_START
-from cntus.xcdb.xcdb import *
+from .xcdb.xcdb import *
 from .schema import *
 import pandas as pd
 from .utils.memoize import lazyval

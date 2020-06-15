@@ -1,5 +1,5 @@
 import logbook, sys
-from cntus.xcreader import *
+from boost_tushare.xcreader import *
 
 if __name__ == '__main__':
     zipline_logging = logbook.NestedSetup([

@@ -1,7 +1,7 @@
 """
 财务数据，每季度更新
 """
-from cntus.xcdb.xcdb import *
+from .xcdb.xcdb import *
 from .schema import *
 from .proloader import TusNetLoader
 from .utils.xcutils import QUARTER_END

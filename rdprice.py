@@ -2,7 +2,7 @@
 行情数据，每日更新
 """
 from .utils.xcutils import *
-from cntus.xcdb.xcdb import *
+from .xcdb.xcdb import *
 from .schema import *
 import pandas as pd
 from .proloader import TusNetLoader

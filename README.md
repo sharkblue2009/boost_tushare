@@ -1,6 +1,7 @@
-# cntus 
-local cache for tushare(https://tushare.pro)data, database is LMDB/LevelDB
-Tushare数据本地快速缓冲池
+# boost_tushare 
+Cache for tushare data, access speed accelerating.
+Tushare数据访问加速器， 利用本地数据库作为缓冲池。
+https://tushare.pro 
 
 # 特性
 - LMDB/LevelDB本地数据库

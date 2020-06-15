@@ -3,7 +3,7 @@
 import tushare as ts
 from ._passwd import TUS_TOKEN
 
-from cntus.xcdb.xcdb import DATE_FORMAT, DATETIME_FORMAT
+from .xcdb.xcdb import DATE_FORMAT, DATETIME_FORMAT
 from .schema import *
 from .utils.xcutils import *
 from .utils.qos import ThreadingTokenBucket

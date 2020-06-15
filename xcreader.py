@@ -2,8 +2,8 @@
 CN Tushare Cache Reader.
 """
 
-from cntus.xcdb.zleveldb import *
-from cntus.xcdb.zlmdb import *
+from .xcdb.zleveldb import *
+from .xcdb.zlmdb import *
 from .rdbasic import XcReaderBasic
 from .rdfinance import XcReaderFinance
 from .rdprice import XcReaderPrice

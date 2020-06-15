@@ -1,5 +1,5 @@
 from .proloader import TusNetLoader
-from cntus.xcdb.xcdb import *
+from .xcdb.xcdb import *
 from .schema import *
 from .utils.xcutils import *
 import numpy as np

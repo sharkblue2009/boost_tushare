@@ -1,4 +1,4 @@
-from cntus.xcreader import *
+from boost_tushare.xcreader import *
 import unittest
 from pandas.testing import assert_frame_equal
 
