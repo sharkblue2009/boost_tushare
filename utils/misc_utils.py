@@ -259,3 +259,4 @@ def price1m_resample(data1m, periods=5, market_open=True):
     df_out['amount'] = data1m['amount'].groupby(data1m.index // periods).sum()
     df_out = df_out.set_index('trade_time')
     return df_out
+

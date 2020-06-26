@@ -1,11 +1,9 @@
-# from trading_calendars import get_calendar
-
 import tushare as ts
 from ._passwd import TUS_TOKEN
 
 from .xcdb.xcdb import DATE_FORMAT, DATETIME_FORMAT
 from .schema import *
-from .utils.xcutils import *
+from .utils.misc_utils import *
 from .utils.qos import ThreadingTokenBucket
 
 

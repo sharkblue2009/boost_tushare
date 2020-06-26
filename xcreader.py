@@ -4,6 +4,7 @@ CN Tushare Cache Reader.
 
 from .xcdb.zleveldb import *
 from .xcdb.zlmdb import *
+from .utils.api_support import set_algo_instance
 from .rdbasic import XcReaderBasic
 from .rdfinance import XcReaderFinance
 from .rdprice import XcReaderPrice
@@ -13,7 +14,7 @@ from .utils.memoize import lazyval
 from .proloader import get_netloader, TusNetLoader
 
 
-class XcTusReader(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice):
+class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice):
     """
     Cache Reader for tushare data.
     """
@@ -49,19 +50,20 @@ class XcTusReader(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice)
 
         print('Last date:{}'.format(self.xctus_last_date))
 
-        super(XcTusReader, self).__init__()
+        super(XcTusBooster, self).__init__()
 
     def __del__(self):
         self.master_db.close()
 
 
-greader: XcTusReader = None
+greader: XcTusBooster = None
 
 
-def get_tusreader() -> XcTusReader:
+def get_booster() -> XcTusBooster:
     global greader
     if greader is None:
-        greader = XcTusReader()
+        greader = XcTusBooster()
+        set_algo_instance(greader)
     return greader
 
 
@@ -75,6 +77,7 @@ def progress_bar(cur, total):
     sys.stdout.write("[%-50s] %s" % ('=' * int(math.floor(cur * 50 / total)), percent))
     sys.stdout.flush()
 
+from boost_tushare.boost import *
 
 def cntus_update_basic():
     """
@@ -85,20 +88,20 @@ def cntus_update_basic():
     :param b_index_min:
     :return:
     """
-    reader = get_tusreader()
+    reader = get_booster()
     log.info('Download basic information...(Trading Calendar, Asset info)')
-    reader.get_trade_cal(IOFLAG.READ_NETDB)
-    reader.get_index_info(IOFLAG.READ_NETDB)
-    reader.get_stock_info(IOFLAG.READ_NETDB)
-    reader.get_fund_info(IOFLAG.READ_NETDB)
-    reader.get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
-    reader.get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
+    aa = get_trade_cal(IOFLAG.READ_NETDB)
+    get_index_info(IOFLAG.READ_NETDB)
+    get_stock_info(IOFLAG.READ_NETDB)
+    get_fund_info(IOFLAG.READ_NETDB)
+    get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
+    get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
     log.info('Finished')
     return
 
 
 def cntus_update_stock_day(start_date='20150101'):
-    reader = get_tusreader()
+    reader = get_booster()
     df_stock = reader.get_stock_info()
 
     def _fetch_day(symbols):
@@ -165,7 +168,7 @@ def cntus_update_stock_day(start_date='20150101'):
 
 
 def cntus_update_index_day(start_date):
-    reader = get_tusreader()
+    reader = get_booster()
     df_index = reader.get_index_info()
 
     def _fetch_day(symbols):
@@ -199,7 +202,7 @@ def cntus_update_index_day(start_date):
 
 
 def cntus_update_stock_min(start_date='20190101'):
-    reader = get_tusreader()
+    reader = get_booster()
     df_stock = reader.get_stock_info()
 
     def _fetch_min(symbols):
@@ -239,7 +242,7 @@ def cntus_update_stock_min(start_date='20190101'):
 
 
 def cntus_update_index_min(start_date='20190101'):
-    reader = get_tusreader()
+    reader = get_booster()
     df_index = reader.get_index_info()
 
     def _fetch_min(symbols):

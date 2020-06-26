@@ -1,7 +1,8 @@
 from .proloader import TusNetLoader
 from .xcdb.xcdb import *
 from .schema import *
-from .utils.xcutils import *
+from .utils.misc_utils import *
+from .utils.api_support import api_method
 import numpy as np
 import pandas as pd
 import logbook
@@ -114,6 +115,7 @@ class XcUpdaterPrice(object):
 
         return b_vld
 
+    @api_method
     def update_suspend_d(self, start, end, flag=IOFLAG.UPDATE_MISS):
         """
         :param code:
@@ -157,6 +159,7 @@ class XcUpdaterPrice(object):
                 db.save(dtkey, data)
         return np.sum(~bvalid)
 
+    @api_method
     def update_price_daily(self, code, start, end, astype, flag=IOFLAG.UPDATE_MISS):
         """
 
@@ -221,6 +224,7 @@ class XcUpdaterPrice(object):
                 db.save(dtkey, xxd)
         return count
 
+    @api_method
     def update_price_minute(self, code, start, end, freq='1min', astype='E', flag=IOFLAG.UPDATE_MISS):
         """
         :param code:
@@ -285,6 +289,7 @@ class XcUpdaterPrice(object):
 
         return count
 
+    @api_method
     def update_stock_adjfactor(self, code, start, end, flag=IOFLAG.UPDATE_MISS):
         """
 
@@ -342,6 +347,7 @@ class XcUpdaterPrice(object):
                 db.save(dtkey, xxd)
         return count
 
+    @api_method
     def update_stock_dayinfo(self, code, start, end, flag=IOFLAG.UPDATE_MISS):
         """
 

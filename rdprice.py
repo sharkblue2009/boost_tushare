@@ -1,13 +1,12 @@
 """
 行情数据，每日更新
 """
-from .utils.xcutils import *
+from .utils.misc_utils import *
 from .xcdb.xcdb import *
 from .schema import *
 import pandas as pd
 from .proloader import TusNetLoader
-from .utils.memoize import lazyval
-
+from .utils.api_support import api_method
 
 class XcReaderPrice(object):
     """
@@ -17,6 +16,7 @@ class XcReaderPrice(object):
     trade_cal_index = None
     netloader: TusNetLoader = None
 
+    @api_method
     def get_price_daily(self, code, start: str, end: str, astype=None, flag=IOFLAG.READ_XC):
         """
         按月存取股票的日线数据
@@ -80,6 +80,7 @@ class XcReaderPrice(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
+    @api_method
     def get_price_minute(self, code, start, end, freq='1min', astype='E', resample=False, flag=IOFLAG.READ_XC):
         """
         按日存取股票的分钟线数据
@@ -171,6 +172,7 @@ class XcReaderPrice(object):
 
         return all_out
 
+    @api_method
     def get_stock_daily_info(self, code, start, end, flag=IOFLAG.READ_XC):
         """
         Get stock daily information.
@@ -220,6 +222,7 @@ class XcReaderPrice(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
+    @api_method
     def get_stock_adjfactor(self, code, start: str, end: str, flag=IOFLAG.READ_XC):
         """
         按月存取股票的日线数据
@@ -274,6 +277,7 @@ class XcReaderPrice(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
+    @api_method
     def get_stock_xdxr(self, code, flag=IOFLAG.READ_XC):
         """
         股票除权除息信息，如需更新，则更新股票历史所有数据。
@@ -297,6 +301,7 @@ class XcReaderPrice(object):
             return db.save(kk, info)
         return
 
+    @api_method
     def get_stock_suspend(self, code, flag=IOFLAG.READ_XC):
         """
         每只股票的停复牌信息
@@ -321,6 +326,7 @@ class XcReaderPrice(object):
             return db.save(kk, info)
         return
 
+    @api_method
     def get_suspend_d(self, start='20100101', end='21000101', flag=IOFLAG.READ_XC):
         """
         每日所有股票停复牌信息

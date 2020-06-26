@@ -1,13 +1,13 @@
 """
 基础数据，不定期更新
 """
-from .utils.xcutils import session_day_to_min_tus, MONTH_END, MONTH_START
+from .utils.misc_utils import session_day_to_min_tus, MONTH_END, MONTH_START
 from .xcdb.xcdb import *
 from .schema import *
 import pandas as pd
 from .utils.memoize import lazyval
 from .proloader import TusNetLoader
-
+from .utils.api_support import api_method, set_algo_instance
 
 class XcReaderBasic(object):
     """
@@ -89,6 +89,7 @@ class XcReaderBasic(object):
     ##########################################################
     # Reader API
     ##########################################################
+    @api_method
     def get_trade_cal(self, flag=IOFLAG.READ_XC):
         db = self.facc(TusSdbs.SDB_TRADE_CALENDAR.value,
                        TRD_CAL_META)
@@ -107,6 +108,7 @@ class XcReaderBasic(object):
             return db.save(kk, info)
         return
 
+    @api_method
     def get_index_info(self, flag=IOFLAG.READ_XC):
         """
 
@@ -129,6 +131,7 @@ class XcReaderBasic(object):
             return db.save(kk, info)
         return
 
+    @api_method
     def get_stock_info(self, flag=IOFLAG.READ_XC):
         """"""
         db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
@@ -148,6 +151,7 @@ class XcReaderBasic(object):
             return db.save(kk, info)
         return
 
+    @api_method
     def get_fund_info(self, flag=IOFLAG.READ_XC):
         """
 
@@ -170,6 +174,7 @@ class XcReaderBasic(object):
             return db.save(kk, info)
         return
 
+    @api_method
     def get_index_weight(self, index_symbol, date, month_start=False, flag=IOFLAG.READ_XC):
         """
         tushare index_weight数据, 月初第一个交易日和月末最后一个交易日更新(20200318: 只有月末最后一个交易日更新数据？)
@@ -203,6 +208,7 @@ class XcReaderBasic(object):
             return db.save(dtkey, info)
         return
 
+    @api_method
     def get_index_classify(self, level, src='SW', flag=IOFLAG.READ_XC):
         """
         申万行业分类
@@ -229,6 +235,7 @@ class XcReaderBasic(object):
             return db.save(kk, info)
         return
 
+    @api_method
     def get_index_member(self, index_code, flag=IOFLAG.READ_XC):
         """
 

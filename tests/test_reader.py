@@ -22,7 +22,7 @@ class TestTusReader(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """"""
-        cls.reader = get_tusreader()  # TusXcReader()
+        cls.reader = get_booster()  # TusXcReader()
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -162,7 +162,7 @@ class TestTusReader(unittest.TestCase):
 #####################################################################
 
 def get_all_price_day(start_date='20160101', end_date='20200101'):
-    reader = get_tusreader()
+    reader = get_booster()
 
     df_stock = reader.get_stock_info()[:]
     out = {}
@@ -178,7 +178,7 @@ def get_all_price_day(start_date='20160101', end_date='20200101'):
 
 
 def get_all_price_day_parallel(start_date='20160101', end_date='20200101'):
-    reader = get_tusreader()
+    reader = get_booster()
 
     def _fetch(symbols):
         results = {}
@@ -217,7 +217,7 @@ def get_all_price_day_parallel(start_date='20160101', end_date='20200101'):
 
 
 def get_all_dayinfo(start_date='20160101', end_date='20200101'):
-    reader = get_tusreader()
+    reader = get_booster()
 
     df_stock = reader.get_stock_info()[:]
     print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
@@ -227,7 +227,7 @@ def get_all_dayinfo(start_date='20160101', end_date='20200101'):
 
 
 def get_all_price_min(start_date='20190101', end_date='20200101'):
-    reader = get_tusreader()
+    reader = get_booster()
 
     df_stock = reader.get_stock_info()[:]
     print('get_min, total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
