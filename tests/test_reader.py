@@ -1,7 +1,8 @@
-from boost_tushare.xcreader import *
+from boost_tushare.api import *
+from boost_tushare import *
 import unittest
 from pandas.testing import assert_frame_equal
-
+import pandas as pd
 
 def check_df_equal(x, y):
     try:
@@ -22,7 +23,7 @@ class TestTusReader(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """"""
-        cls.reader = get_booster()  # TusXcReader()
+        cls.reader = tusbooster_init()  # TusXcReader()
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -30,88 +31,81 @@ class TestTusReader(unittest.TestCase):
         # del cls.reader
 
     def test_get_assets_info(self):
-        reader = self.reader
-        df = reader.get_index_info()
+        df = get_index_info()
         print('Index info')
         print(df)
-        df = reader.get_stock_info()
+        df = get_stock_info()
         print('Stock info')
         print(df.iloc[-10:])
-        df = reader.get_fund_info()
+        df = get_fund_info()
         print(df.iloc[-10:])
-        df = reader.trade_cal
+        df = get_trade_cal()
         print(df.iloc[-10:])
 
     def test_index_weight(self):
-        reader = self.reader
         code = '399300.SZ'
         date = '20171010'
-        df1 = reader.get_index_weight(code, date, IOFLAG.READ_NETDB)
+        df1 = get_index_weight(code, date, IOFLAG.READ_NETDB)
         print(df1.iloc[-10:])
-        df2 = reader.get_index_weight(code, date, IOFLAG.READ_XC)
+        df2 = get_index_weight(code, date, IOFLAG.READ_XC)
         self.assertTrue(check_df_equal(df1, df2))
 
     def test_index_member(self):
-        reader = self.reader
         index_code = '000001.SZ'
-        df1 = reader.get_index_member(index_code, IOFLAG.READ_NETDB)
-        df2 = reader.get_index_member(index_code, IOFLAG.READ_XC)
+        df1 = get_index_member(index_code, IOFLAG.READ_NETDB)
+        df2 = get_index_member(index_code, IOFLAG.READ_XC)
         self.assertTrue(check_df_equal(df1, df2))
 
     def test_index_classify(self):
-        reader = self.reader
-        df = reader.get_index_classify('L1')
+        df = get_index_classify('L1')
         print(df.iloc[-10:])
 
     def test_suspend(self):
-        reader = self.reader
         start = '20190101'
         end = '20200310'
         stk = '000029.SZ'
-        df = reader.get_suspend_d(start, end)
+        df = get_suspend_d(start, end)
         print(df.loc[pd.IndexSlice[:, stk], :])
 
         self.assertTrue(not df.empty)
 
     def test_stock_daily(self):
-        reader = self.reader
         stk = '002465.SZ'
         start = '20190101'
         end = '20200310'
-        df = reader.get_price_daily(stk, start, end)
+        df = get_price_daily(stk, start, end)
         self.assertFalse(df.empty)
-        df = reader.get_stock_adjfactor(stk, start, end)
+        df = get_stock_adjfactor(stk, start, end)
         self.assertFalse(df.empty)
 
         stk = '000906.SH'
         start = '20190101'
         end = '20200310'
-        df = reader.get_price_daily(stk, start, end)
+        df = get_price_daily(stk, start, end)
         self.assertFalse(df.empty)
 
     def test_finance(self):
-        reader = self.reader
         stk = '002465.SZ'
         start = '20190101'
-        df1 = reader.get_income(stk, start, IOFLAG.READ_NETDB)
+        df1 = get_income(stk, start, IOFLAG.READ_NETDB)
         self.assertFalse(df1.empty)
-        df2 = reader.get_income(stk, start)
+        df2 = get_income(stk, start)
         self.assertTrue(check_df_equal(df1, df2))
 
-        df1 = reader.get_cashflow(stk, start, IOFLAG.READ_NETDB)
+        df1 = get_cashflow(stk, start, IOFLAG.READ_NETDB)
         self.assertFalse(df1.empty)
-        df2 = reader.get_cashflow(stk, start)
+        df2 = get_cashflow(stk, start)
         self.assertTrue(check_df_equal(df1, df2))
 
-        df1 = reader.get_balancesheet(stk, start, IOFLAG.READ_NETDB)
+        df1 = get_balancesheet(stk, start, IOFLAG.READ_NETDB)
         self.assertFalse(df1.empty)
-        df2 = reader.get_balancesheet(stk, start)
+        df2 = get_balancesheet(stk, start)
         df2 = df2.astype(df1.dtypes)
         self.assertTrue(check_df_equal(df1, df2))
 
-        df1 = reader.get_fina_indicator(stk, start, IOFLAG.READ_NETDB)
+        df1 = get_fina_indicator(stk, start, IOFLAG.READ_NETDB)
         self.assertFalse(df1.empty)
-        df2 = reader.get_fina_indicator(stk, start)
+        df2 = get_fina_indicator(stk, start)
         self.assertTrue(check_df_equal(df1, df2))
 
     # def test_min_data_resample(self):
@@ -143,11 +137,10 @@ class TestTusReader(unittest.TestCase):
     #                 print('wrong')
 
     def test_benchmark_stock_price(self):
-        reader = self.reader
-        print(timeit.Timer(lambda: reader.get_price_daily('002465.SZ', '20150101', '20200303')).timeit(10))
-        print(timeit.Timer(lambda: reader.get_price_daily('002465.SZ', '20150101', '20200303')).timeit(10))
+        print(timeit.Timer(lambda: get_price_daily('002465.SZ', '20150101', '20200303')).timeit(10))
+        print(timeit.Timer(lambda: get_price_daily('002465.SZ', '20150101', '20200303')).timeit(10))
 
-        print(timeit.Timer(lambda: reader.get_price_minute('002465.SZ', '20190101', '20200303')).timeit(10))
+        print(timeit.Timer(lambda: get_price_minute('002465.SZ', '20190101', '20200303')).timeit(10))
 
     def test_benchmark_all(self):
         # print(timeit.Timer(lambda: get_all_price_day_parallel()).timeit(1))
@@ -162,23 +155,22 @@ class TestTusReader(unittest.TestCase):
 #####################################################################
 
 def get_all_price_day(start_date='20160101', end_date='20200101'):
-    reader = get_booster()
 
-    df_stock = reader.get_stock_info()[:]
+    df_stock = get_stock_info()[:]
     out = {}
     print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
     for k, stk in df_stock['ts_code'].items():
         # log.info('-->{}'.format(stk))
         # reader.get_stock_adjfactor(stk, start_date, end_date)
         # reader.get_stock_xdxr(stk)
-        bars1 = reader.get_price_daily(stk, start_date, end_date)
+        bars1 = get_price_daily(stk, start_date, end_date)
         out[stk] = bars1
 
     return out
 
 
 def get_all_price_day_parallel(start_date='20160101', end_date='20200101'):
-    reader = get_booster()
+    from boost_tushare.utils.parallelize import parallelize
 
     def _fetch(symbols):
         results = {}
@@ -189,13 +181,13 @@ def get_all_price_day_parallel(start_date='20160101', end_date='20200101'):
 
             # adj1 = reader.get_stock_adjfactor(stk, t_start, t_end)
             # reader.get_stock_xdxr(stk, refresh=True)
-            bars1 = reader.get_price_daily(stk, t_start, t_end)
+            bars1 = get_price_daily(stk, t_start, t_end)
 
             results[stk] = bars1
 
         return results
 
-    df_stock = reader.get_stock_info()[:]
+    df_stock = get_stock_info()[:]
 
     all_symbols = []
     for k, stk in df_stock['ts_code'].items():
@@ -217,23 +209,21 @@ def get_all_price_day_parallel(start_date='20160101', end_date='20200101'):
 
 
 def get_all_dayinfo(start_date='20160101', end_date='20200101'):
-    reader = get_booster()
 
-    df_stock = reader.get_stock_info()[:]
+    df_stock = get_stock_info()[:]
     print('total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
     for k, stk in df_stock['ts_code'].items():
         # log.info('-->{}'.format(stk))
-        reader.get_stock_daily_info(stk, start_date, end_date)
+        get_stock_daily_info(stk, start_date, end_date)
 
 
 def get_all_price_min(start_date='20190101', end_date='20200101'):
-    reader = get_booster()
 
-    df_stock = reader.get_stock_info()[:]
+    df_stock = get_stock_info()[:]
     print('get_min, total stocks: {}, {}-{}'.format(len(df_stock), start_date, end_date))
     for k, stk in df_stock['ts_code'].items():
         # log.info('-->{}'.format(stk))
-        reader.get_price_minute(stk, start_date, end_date, freq='5min')
+        get_price_minute(stk, start_date, end_date, freq='5min')
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 import logbook, sys
-from boost_tushare.xcreader import *
+from boost_tushare.xcbooster import *
+from boost_tushare import tusbooster_init
 
 if __name__ == '__main__':
     zipline_logging = logbook.NestedSetup([
@@ -8,6 +9,8 @@ if __name__ == '__main__':
         logbook.StreamHandler(sys.stderr, level=logbook.ERROR),
     ])
     zipline_logging.push_application()
+
+    reader = tusbooster_init()
 
     cntus_update_basic()
 

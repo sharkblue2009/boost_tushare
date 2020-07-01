@@ -40,7 +40,7 @@ class lazyval(object):
     AttributeError: Can't set read-only attribute.
     >>> c.val
     'val'
-    >>>C.val.update(c)
+    >>> C.val.update(c)
     """
     def __init__(self, get):
         self._get = get

@@ -4,11 +4,11 @@ CN Tushare Cache Reader.
 
 from .xcdb.zleveldb import *
 from .xcdb.zlmdb import *
-from .utils.api_support import set_algo_instance
+from api_wrapper import set_algo_instance
 from .rdbasic import XcReaderBasic
 from .rdfinance import XcReaderFinance
 from .rdprice import XcReaderPrice
-from .updater import XcUpdaterPrice
+from .txupdater import XcUpdaterPrice
 from .utils.parallelize import parallelize
 from .utils.memoize import lazyval
 from .proloader import get_netloader, TusNetLoader
@@ -56,19 +56,18 @@ class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice
         self.master_db.close()
 
 
-greader: XcTusBooster = None
-
-
-def get_booster() -> XcTusBooster:
-    global greader
-    if greader is None:
-        greader = XcTusBooster()
-        set_algo_instance(greader)
-    return greader
-
-
 ###############################################################################
 import math, sys
+
+g_booster: XcTusBooster = None
+
+
+def tusbooster_init() -> XcTusBooster:
+    global g_booster
+    if g_booster is None:
+        g_booster = XcTusBooster()
+        set_algo_instance(g_booster)
+    return g_booster
 
 
 def progress_bar(cur, total):
@@ -77,7 +76,10 @@ def progress_bar(cur, total):
     sys.stdout.write("[%-50s] %s" % ('=' * int(math.floor(cur * 50 / total)), percent))
     sys.stdout.flush()
 
-from boost_tushare.boost import *
+
+from boost_tushare.api import *
+from boost_tushare import *
+
 
 def cntus_update_basic():
     """
@@ -88,21 +90,28 @@ def cntus_update_basic():
     :param b_index_min:
     :return:
     """
-    reader = get_booster()
     log.info('Download basic information...(Trading Calendar, Asset info)')
-    aa = get_trade_cal(IOFLAG.READ_NETDB)
+    tusbooster_init()
+    get_trade_cal(IOFLAG.READ_NETDB)
+
     get_index_info(IOFLAG.READ_NETDB)
     get_stock_info(IOFLAG.READ_NETDB)
     get_fund_info(IOFLAG.READ_NETDB)
     get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
     get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
     log.info('Finished')
+
+    booster = tusbooster_init()
+    XcTusBooster.trade_cal.update(booster)
+    XcTusBooster.trade_cal_index.update(booster)
+
     return
 
 
 def cntus_update_stock_day(start_date='20150101'):
-    reader = get_booster()
-    df_stock = reader.get_stock_info()
+    tusbooster_init()
+
+    df_stock = get_stock_info()
 
     def _fetch_day(symbols):
         results = {}
@@ -111,7 +120,7 @@ def cntus_update_stock_day(start_date='20150101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = reader.update_price_daily(stk, t_start, t_end, astype)
+            results[stk] = update_price_daily(stk, t_start, t_end, astype)
 
         return results
 
@@ -122,19 +131,21 @@ def cntus_update_stock_day(start_date='20150101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
 
-            reader.get_stock_xdxr(stk, IOFLAG.READ_NETDB)
+            get_stock_xdxr(stk, IOFLAG.READ_NETDB)
             # reader.update_stock_adjfactor(stk, t_start, t_end)
-            results[stk] = reader.update_stock_dayinfo(stk, t_start, t_end)
+            results[stk] = update_stock_dayinfo(stk, t_start, t_end)
 
         return results
 
     end_date = pd.Timestamp.today().strftime('%Y%m%d')
 
     log.info('Downloading stocks suspend data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
-    reader.update_suspend_d(start_date, end_date)
+    update_suspend_d(start_date, end_date)
 
-    #dummy read suspend_info
-    suspend_info = reader.get_suspend_d(start_date, end_date)
+    # dummy read suspend_info
+    suspend_info = get_suspend_d(start_date, end_date)
+    # booster = init_booster()
+    # XcTusBooster.suspend_info.update(booster)
 
     all_symbols = []
     for k, stk in df_stock['ts_code'].items():
@@ -168,8 +179,9 @@ def cntus_update_stock_day(start_date='20150101'):
 
 
 def cntus_update_index_day(start_date):
-    reader = get_booster()
-    df_index = reader.get_index_info()
+    tusbooster_init()
+
+    df_index = get_index_info()
 
     def _fetch_day(symbols):
         results = {}
@@ -178,7 +190,7 @@ def cntus_update_index_day(start_date):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = reader.update_price_daily(stk, t_start, t_end, astype)
+            results[stk] = update_price_daily(stk, t_start, t_end, astype)
 
         return results
 
@@ -202,8 +214,9 @@ def cntus_update_index_day(start_date):
 
 
 def cntus_update_stock_min(start_date='20190101'):
-    reader = get_booster()
-    df_stock = reader.get_stock_info()
+    tusbooster_init()
+
+    df_stock = get_stock_info()
 
     def _fetch_min(symbols):
         results = {}
@@ -212,8 +225,7 @@ def cntus_update_stock_min(start_date='20190101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = reader.update_price_minute(stk, t_start, t_end, freq='5min', astype=astype,
-                                                      flag=IOFLAG.UPDATE_MISS)
+            results[stk] = update_price_minute(stk, t_start, t_end, freq='5min', astype=astype)
 
         return results
 
@@ -242,8 +254,9 @@ def cntus_update_stock_min(start_date='20190101'):
 
 
 def cntus_update_index_min(start_date='20190101'):
-    reader = get_booster()
-    df_index = reader.get_index_info()
+    tusbooster_init()
+
+    df_index = get_index_info()
 
     def _fetch_min(symbols):
         results = {}
@@ -252,8 +265,7 @@ def cntus_update_index_min(start_date='20190101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = reader.update_price_minute(stk, t_start, t_end, freq='1min', astype=astype,
-                                                      flag=IOFLAG.UPDATE_MISS)
+            results[stk] = update_price_minute(stk, t_start, t_end, freq='1min', astype=astype)
 
         return results
 
@@ -277,5 +289,3 @@ def cntus_update_index_min(start_date='20190101'):
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
     return
-
-

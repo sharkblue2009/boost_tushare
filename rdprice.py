@@ -2,11 +2,13 @@
 行情数据，每日更新
 """
 from .utils.misc_utils import *
+# from .utils.memoize import lazyval
 from .xcdb.xcdb import *
 from .schema import *
 import pandas as pd
 from .proloader import TusNetLoader
-from .utils.api_support import api_method
+from api_wrapper import api_call
+
 
 class XcReaderPrice(object):
     """
@@ -16,7 +18,7 @@ class XcReaderPrice(object):
     trade_cal_index = None
     netloader: TusNetLoader = None
 
-    @api_method
+    @api_call
     def get_price_daily(self, code, start: str, end: str, astype=None, flag=IOFLAG.READ_XC):
         """
         按月存取股票的日线数据
@@ -80,7 +82,7 @@ class XcReaderPrice(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
-    @api_method
+    @api_call
     def get_price_minute(self, code, start, end, freq='1min', astype='E', resample=False, flag=IOFLAG.READ_XC):
         """
         按日存取股票的分钟线数据
@@ -172,7 +174,7 @@ class XcReaderPrice(object):
 
         return all_out
 
-    @api_method
+    @api_call
     def get_stock_daily_info(self, code, start, end, flag=IOFLAG.READ_XC):
         """
         Get stock daily information.
@@ -222,7 +224,7 @@ class XcReaderPrice(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
-    @api_method
+    @api_call
     def get_stock_adjfactor(self, code, start: str, end: str, flag=IOFLAG.READ_XC):
         """
         按月存取股票的日线数据
@@ -277,7 +279,7 @@ class XcReaderPrice(object):
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
-    @api_method
+    @api_call
     def get_stock_xdxr(self, code, flag=IOFLAG.READ_XC):
         """
         股票除权除息信息，如需更新，则更新股票历史所有数据。
@@ -301,7 +303,7 @@ class XcReaderPrice(object):
             return db.save(kk, info)
         return
 
-    @api_method
+    @api_call
     def get_stock_suspend(self, code, flag=IOFLAG.READ_XC):
         """
         每只股票的停复牌信息
@@ -326,7 +328,7 @@ class XcReaderPrice(object):
             return db.save(kk, info)
         return
 
-    @api_method
+    @api_call
     def get_suspend_d(self, start='20100101', end='21000101', flag=IOFLAG.READ_XC):
         """
         每日所有股票停复牌信息
@@ -378,7 +380,8 @@ class XcReaderPrice(object):
         all_out = all_out.loc[pd.IndexSlice[tstart:tend, :]]
         # mask = all_out.index.map(lambda x: (x[0]>=tstart) & (x[0]<=tend))
         # all_out = all_out.loc[mask]
-        self.suspend_info = all_out
+
+        self.suspend_info = all_out  # read the suspend info into cache
         return all_out
 
     def stock_suspend(self, code):
@@ -394,80 +397,3 @@ class XcReaderPrice(object):
     #     """"""
     #     log.info('Load stock suspend info.')
     #     return self.get_suspend_d()
-
-
-class XcEraserPrice(object):
-    def erase_price_daily(self, code, start, end, astype):
-        tstart = pd.Timestamp(start)
-        tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal_index)
-        if len(vdates) == 0:
-            return
-
-        db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code,
-                       EQUITY_DAILY_PRICE_META)
-        for n, dd in enumerate(vdates):
-            dtkey = dd.strftime(DATE_FORMAT)
-            db.remove(dtkey)
-        return
-
-    def erase_price_minute(self, code, start, end, freq='1min', astype=None):
-        if freq not in ['1min', '5min', '15min', '30min', '60min', '120m']:
-            return None
-
-        tstart = pd.Timestamp(start)
-        tend = pd.Timestamp(end)
-        vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype),
-                                self.trade_cal_index)
-        if len(vdates) == 0:
-            return
-
-        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
-                       EQUITY_MINUTE_PRICE_META)
-
-        for n, dd in enumerate(vdates):
-            dtkey = dd.strftime(DATE_FORMAT)
-            db.remove(dtkey)
-        return
-
-    def erase_stock_dayinfo(self, code, start, end):
-        """
-
-        :param code:
-        :param start:
-        :param end:
-        :return:
-        """
-        tstart = pd.Timestamp(start)
-        tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
-        if len(vdates) == 0:
-            return
-
-        db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
-                       STOCK_DAILY_INFO_META)
-        for n, dd in enumerate(vdates):
-            dtkey = dd.strftime(DATE_FORMAT)
-            db.remove(dtkey)
-        return
-
-    def erase_stock_adjfactor(self, code, start, end):
-        """
-
-        :param code:
-        :param start:
-        :param end:
-        :return:
-        """
-        tstart = pd.Timestamp(start)
-        tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
-        if len(vdates) == 0:
-            return
-
-        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
-                       STOCK_ADJFACTOR_META)
-        for n, dd in enumerate(vdates):
-            dtkey = dd.strftime(DATE_FORMAT)
-            db.remove(dtkey)
-        return

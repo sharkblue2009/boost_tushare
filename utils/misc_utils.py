@@ -2,6 +2,9 @@
 Utils
 """
 import pandas as pd
+import logbook
+
+log = logbook.Logger('utl')
 
 
 def nadata_iter(ar_flags, max_length):
@@ -260,3 +263,97 @@ def price1m_resample(data1m, periods=5, market_open=True):
     df_out = df_out.set_index('trade_time')
     return df_out
 
+
+def integrity_check_km_vday(dt, dtval, trade_days, susp_info=None, code=None):
+    """
+    monthly key with daily data. use suspend information to check if the data is integrate
+    :param dt: date keys
+    :param dtval: values
+    :return:
+    """
+    if dtval is None:
+        return False
+
+    # trade_days = self.trade_cal_index
+    # susp_info = self.suspend_info.loc[pd.IndexSlice[:, code]]
+
+    trdays = trade_days[(trade_days >= MONTH_START(dt)) & (trade_days <= MONTH_END(dt))]
+    if susp_info is None:
+        expect_size = len(trdays)
+        susp = None
+    else:
+        susp = susp_info[(susp_info.index >= MONTH_START(dt)) & (susp_info.index <= MONTH_END(dt))]
+        susp = susp.loc[(susp['suspend_type'] == 'S') & (susp['suspend_timing'].isna()), :]
+        expect_size = len(trdays) - len(susp)
+
+    if expect_size <= len(dtval):
+        # 股票存在停牌半天的情况，也会被计入suspend列表
+        bvalid = True
+    else:
+        bvalid = False
+        if susp_info is not None:
+            log.info('[!KMVDAY]:{}-{}:: t{}-v{}-s{} '.format(code, dt, len(trdays), len(susp), len(dtval)))
+
+    return bvalid
+
+
+def integrity_check_kd_vday(dt, dtval, trade_days):
+    """
+    daily key with daily data.
+    :param code: ts code
+    :param dtkeys: list of date keys
+    :param dtvals: list of values
+    :return:
+    """
+    if dtval is None:
+        return False
+
+    if dt in trade_days:
+        return True
+
+    log.info('[!KDVDAY]: {}'.format(dt))
+    return False
+
+
+def integrity_check_kd_vmin(dt, dtval, trade_days, susp_info=None, freq='1min', code=None):
+    """
+    daily key with minute data, use suspend information to judge if the data should exist,
+    :param dt: date keys
+    :param dtval:  values
+    :return:
+    """
+    if dtval is None:
+        return False
+
+    # trdays = self.trade_cal_index
+    # susp_info = self.suspend_info.loc[pd.IndexSlice[:, code]]
+
+    cc = {'1min': 241, '5min': 49, '15min': 17, '30min': 9, '60min': 5, '120min': 3}
+    nbars = cc[freq]
+
+    b_vld = False
+
+    if dt in trade_days:
+        data = dtval
+        if susp_info is None:
+            if len(data) == nbars:
+                b_vld = True
+        else:
+            susp = susp_info.loc[(susp_info['suspend_type'] == 'S') & (susp_info.index == dt), :]
+            if not susp.empty:
+                if susp['suspend_timing'].isna():  # .iloc[-1]
+                    # 当日全天停牌
+                    if len(data) == nbars or len(data) == 0:
+                        b_vld = True
+                else:
+                    # 部分时间停牌
+                    if len(data) < nbars:
+                        b_vld = True
+            else:
+                if len(data) == nbars:
+                    b_vld = True
+
+        if not b_vld and susp_info is not None:
+            log.info('[!KDVMIN]-: {}-{}:: {}-{} '.format(code, dt, len(susp), len(data)))
+
+    return b_vld

@@ -80,12 +80,12 @@ class IOFLAG(IntEnum):
     READ_NETDB = 2  # Read from Net first, then flush to DB.
     # READ_NETONLY = 3   # Read from Net only, not flush to DB.
 
-    ERASE = 10  # Erase range
+    ERASE_INVALID = 10  # Erase invalid&missed data
     ERASE_ALL = 11  # Erase SDB
 
-    UPDATE_MISS = 20  # Update missed/NA data
-    UPDATE_INVALID = 21  # Update invalid&missed data
-    UPDATE_ALL = 23  # Update all data
+    # UPDATE_MISS = 20  # Update missed/NA data
+    # UPDATE_INVALID = 21  # Update invalid&missed data
+    # UPDATE_ALL = 23  # Update all data
 
 
 """
