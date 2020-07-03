@@ -4,8 +4,8 @@
 from .xcdb.xcdb import *
 from .schema import *
 from .proloader import TusNetLoader
-from .utils.misc_utils import QUARTER_END
-from api_wrapper import api_call
+from .utils.xcbstutils import QUARTER_END
+from .apiwrapper import api_call
 
 
 class XcReaderFinance(object):

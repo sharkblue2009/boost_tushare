@@ -1,13 +1,13 @@
 """
 基础数据，不定期更新
 """
-from .utils.misc_utils import session_day_to_min_tus, MONTH_END, MONTH_START
+from .utils.xcbstutils import session_day_to_min_tus, MONTH_END, MONTH_START
 from .xcdb.xcdb import *
 from .schema import *
 import pandas as pd
 from .utils.memoize import lazyval
 from .proloader import TusNetLoader
-from api_wrapper import api_call
+from .apiwrapper import api_call
 
 
 class XcReaderBasic(object):
@@ -108,6 +108,13 @@ class XcReaderBasic(object):
             info = self.netloader.set_trade_cal()
             return db.save(kk, info)
         return
+
+    @api_call
+    def get_trade_cal_index(self, flag=IOFLAG.READ_XC):
+        trade_cal = self.get_trade_cal(flag)
+        all_trade_cal = pd.to_datetime(trade_cal.tolist(), format='%Y%m%d')
+        valid_trade_cal = all_trade_cal[all_trade_cal < self.xctus_last_date]
+        return valid_trade_cal
 
     @api_call
     def get_index_info(self, flag=IOFLAG.READ_XC):

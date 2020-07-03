@@ -1,13 +1,13 @@
 """
 行情数据，每日更新
 """
-from .utils.misc_utils import *
+from .utils.xcbstutils import *
 # from .utils.memoize import lazyval
 from .xcdb.xcdb import *
 from .schema import *
 import pandas as pd
 from .proloader import TusNetLoader
-from api_wrapper import api_call
+from .apiwrapper import api_call
 
 
 class XcReaderPrice(object):

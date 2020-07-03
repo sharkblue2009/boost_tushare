@@ -3,7 +3,7 @@ from ._passwd import TUS_TOKEN
 
 from .xcdb.xcdb import DATE_FORMAT, DATETIME_FORMAT
 from .schema import *
-from .utils.misc_utils import *
+from .utils.xcbstutils import *
 from .utils.qos import ThreadingTokenBucket
 
 
@@ -319,7 +319,7 @@ class TusNetLoader(XcNLBasic, XcNLFinance, XcNLPrice):
 gnetloader: TusNetLoader = None
 
 
-def get_netloader() -> TusNetLoader:
+def netloader_init() -> TusNetLoader:
     global gnetloader
     if gnetloader is None:
         gnetloader = TusNetLoader()

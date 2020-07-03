@@ -1,8 +1,8 @@
 from .proloader import TusNetLoader
 from .xcdb.xcdb import *
 from .schema import *
-from .utils.misc_utils import *
-from api_wrapper import api_call
+from .utils.xcbstutils import *
+from .apiwrapper import api_call
 import numpy as np
 import pandas as pd
 import logbook

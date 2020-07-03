@@ -7,6 +7,8 @@ def get_trade_cal(flag=IOFLAG.READ_XC):
     :return:
     """
 
+def get_trade_cal_index(self, flag=IOFLAG.READ_XC):
+    """"""
 
 def get_index_info(flag=IOFLAG.READ_XC):
     """
@@ -144,3 +146,16 @@ def update_stock_adjfactor(code, start, end, rollback=3):
 
 def update_stock_dayinfo(code, start, end, rollback=3):
     """"""
+
+def check_price_daily(code, start, end, astype, flag=IOFLAG.ERASE_INVALID):
+    """"""
+
+def check_price_minute(code, start, end, freq='1min', astype=None, flag=IOFLAG.ERASE_INVALID):
+    """"""
+
+def check_stock_dayinfo(code, start, end, flag=IOFLAG.ERASE_INVALID):
+    """"""
+
+def check_stock_adjfactor(self, code, start, end, flag=IOFLAG.ERASE_INVALID):
+    """"""
+

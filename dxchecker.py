@@ -1,11 +1,11 @@
-from .utils.misc_utils import *
-from api_wrapper import api_call
+from .utils.xcbstutils import *
+from .apiwrapper import api_call
 from .xcdb.xcdb import *
 from .schema import *
 import pandas as pd
 
 
-class XcEraserPrice(object):
+class XcCheckerPrice(object):
     suspend_info = None
     trade_cal_index: pd.DatetimeIndex = None
 
