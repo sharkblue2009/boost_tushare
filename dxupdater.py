@@ -189,7 +189,7 @@ class XcUpdaterPrice(object):
             val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
             if val is not None:
                 bvalid[n] = True
-                if n == len(vdates) - rollback:
+                if n >= len(vdates) - rollback:
                     bvalid[n] = integrity_check_km_vday(dd, val, self.trade_cal_index,
                                                         self.stock_suspend(code), code)
             else:
@@ -238,7 +238,7 @@ class XcUpdaterPrice(object):
             val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
             if val is not None:
                 bvalid[n] = True
-                if n == len(vdates) - rollback:
+                if n >= len(vdates) - rollback:
                     bvalid[n] = integrity_check_km_vday(dd, val, self.trade_cal_index,
                                                         self.stock_suspend(code), code)
             else:

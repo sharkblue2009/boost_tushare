@@ -230,11 +230,11 @@ if __name__ == '__main__':
     import logbook, sys
     import timeit
 
-    zipline_logging = logbook.NestedSetup([
+    app_logging = logbook.NestedSetup([
         logbook.NullHandler(),
         logbook.StreamHandler(sys.stdout, level=logbook.INFO),
         logbook.StreamHandler(sys.stderr, level=logbook.ERROR),
     ])
-    zipline_logging.push_application()
+    app_logging.push_application()
 
     unittest.main(verbosity=2)

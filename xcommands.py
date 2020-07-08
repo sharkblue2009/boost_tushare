@@ -4,7 +4,8 @@ import math, sys
 import click
 import logbook
 import pandas as pd
-from .utils.parallelize import parallelize
+import numpy as np
+from boost_tushare.utils.parallelize import parallelize
 
 from boost_tushare.api import *
 from boost_tushare import *
@@ -70,7 +71,9 @@ def cntus_update_stock_day(start_date='20150101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
 
+            # Froce reload xdxr from net
             get_stock_xdxr(stk, IOFLAG.READ_NETDB)
+
             # reader.update_stock_adjfactor(stk, t_start, t_end)
             results[stk] = update_stock_dayinfo(stk, t_start, t_end)
 
@@ -111,7 +114,7 @@ def cntus_update_stock_day(start_date='20150101'):
     for idx in range(0, len(all_symbols), batch_size):
         progress_bar(idx, len(all_symbols))
         symbol_batch = all_symbols[idx:idx + batch_size]
-        parallelize(_fetch_stock_ext, workers=20, splitlen=3)(symbol_batch)
+        result = parallelize(_fetch_stock_ext, workers=20, splitlen=3)(symbol_batch)
         all_result.update(result)
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
@@ -296,10 +299,32 @@ def cntus_check_stock_day(start_date='20150101'):
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
 
+
 ####################################################################################
-@click.group()
-def first():
-    print("hello world")
+import cmd
+
+
+class REPL(cmd.Cmd):
+    def __init__(self, ctx):
+        cmd.Cmd.__init__(self)
+        self.ctx = ctx
+
+        self.prompt = 'BST>>'
+
+    def default(self, line):
+        subcommand = first.commands.get(line)
+        if subcommand:
+            self.ctx.invoke(subcommand)
+        else:
+            return cmd.Cmd.default(self, line)
+
+
+@click.group(invoke_without_command=True)
+@click.pass_context
+def first(ctx):
+    if ctx.invoked_subcommand is None:
+        repl = REPL(ctx)
+        repl.cmdloop()
 
 
 @click.command()
@@ -344,7 +369,7 @@ def update_index_minute(start, end):
 @click.option("--start", default='20170101', )
 @click.option("--end", default=None, )
 def check_daily(start, end):
-    cntus_update_index_min(start_date=start)
+    cntus_check_stock_day(start_date=start)
     click.echo('done')
 
 
@@ -353,5 +378,16 @@ first.add_command(update_daily)
 first.add_command(update_minute)
 first.add_command(update_index_daily)
 first.add_command(update_index_minute)
+first.add_command(check_daily)
 
-first()
+if __name__ == "__main__":
+    import logbook, sys
+
+    app_logging = logbook.NestedSetup([
+        logbook.NullHandler(),
+        logbook.StreamHandler(sys.stdout, level=logbook.INFO),
+        logbook.StreamHandler(sys.stderr, level=logbook.ERROR),
+    ])
+    app_logging.push_application()
+
+    first()
