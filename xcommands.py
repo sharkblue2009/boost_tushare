@@ -45,6 +45,12 @@ def cntus_update_basic():
     XcTusBooster.trade_cal.update(booster)
     XcTusBooster.trade_cal_index.update(booster)
 
+    start_date = '20100101'
+    end_date = pd.Timestamp.today().strftime('%Y%m%d')
+
+    log.info('Downloading stocks suspend data: {}-{}'.format(start_date, end_date))
+    update_suspend_d(start_date, end_date)
+
     return
 
 
@@ -64,25 +70,10 @@ def cntus_update_stock_day(start_date='20150101'):
 
         return results
 
-    def _fetch_stock_ext(symbols):
-        results = {}
-        for ss in symbols:
-            stk = ss['code']
-            t_start = ss['start_date']
-            t_end = ss['end_date']
-
-            # Froce reload xdxr from net
-            get_stock_xdxr(stk, IOFLAG.READ_NETDB)
-
-            # reader.update_stock_adjfactor(stk, t_start, t_end)
-            results[stk] = update_stock_dayinfo(stk, t_start, t_end)
-
-        return results
-
     end_date = pd.Timestamp.today().strftime('%Y%m%d')
 
-    log.info('Downloading stocks suspend data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
-    update_suspend_d(start_date, end_date)
+    # log.info('Downloading stocks suspend data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+    # update_suspend_d(start_date, end_date)
 
     # dummy read suspend_info
     suspend_info = get_suspend_d(start_date, end_date)
@@ -107,6 +98,40 @@ def cntus_update_stock_day(start_date='20150101'):
         all_result.update(result)
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
+
+
+def cntus_update_stock_day_ext(start_date='20150101'):
+    tusbooster_init()
+
+    df_stock = get_stock_info()
+
+    def _fetch_stock_ext(symbols):
+        results = {}
+        for ss in symbols:
+            stk = ss['code']
+            t_start = ss['start_date']
+            t_end = ss['end_date']
+
+            # Froce reload xdxr from net
+            get_stock_xdxr(stk, IOFLAG.READ_NETDB)
+
+            # reader.update_stock_adjfactor(stk, t_start, t_end)
+            results[stk] = update_stock_dayinfo(stk, t_start, t_end)
+
+        return results
+
+    end_date = pd.Timestamp.today().strftime('%Y%m%d')
+
+    # dummy read suspend_info
+    suspend_info = get_suspend_d(start_date, end_date)
+
+    all_symbols = []
+    for k, stk in df_stock['ts_code'].items():
+        all_symbols.append({'code': stk, 'start_date': start_date, 'end_date': end_date, 'astype': 'E'})
+
+    all_symbols = list(reversed(all_symbols))
+
+    batch_size = 60
 
     log.info('Downloading stocks extension data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
 
@@ -342,6 +367,14 @@ def update_daily(start, end):
 
 
 @click.command()
+@click.option("--start", default='20130101', )
+@click.option("--end", default=None, )
+def update_daily_ext(start, end):
+    cntus_update_stock_day_ext(start_date=start)
+    click.echo('done')
+
+
+@click.command()
 @click.option("--start", default='20170101', )
 @click.option("--end", default=None, )
 def update_minute(start, end):
@@ -366,7 +399,7 @@ def update_index_minute(start, end):
 
 
 @click.command()
-@click.option("--start", default='20170101', )
+@click.option("--start", default='20130101', )
 @click.option("--end", default=None, )
 def check_daily(start, end):
     cntus_check_stock_day(start_date=start)
