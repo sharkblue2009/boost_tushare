@@ -408,6 +408,7 @@ def check_daily(start, end):
 
 first.add_command(update_basic)
 first.add_command(update_daily)
+first.add_command(update_daily_ext)
 first.add_command(update_minute)
 first.add_command(update_index_daily)
 first.add_command(update_index_minute)
