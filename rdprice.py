@@ -83,7 +83,7 @@ class XcReaderPrice(object):
         return all_out
 
     @api_call
-    def get_price_minute(self, code, start, end, freq='1min', astype='E', resample=False, flag=IOFLAG.READ_XC):
+    def get_price_minute(self, code, start, end, freq='1min', astype='E', merge_open=True, resample=False, flag=IOFLAG.READ_XC):
         """
         按日存取股票的分钟线数据
         1. 如当日停牌无交易，则存入空数据
@@ -91,7 +91,7 @@ class XcReaderPrice(object):
         3. 当日有交易，则存储交易日的数据
         4. 如交易日键值不存在，但股票状态是正常上市，则该月数据需要下载
         5. refresh两种模式，1: 一种是只刷新末月数据，2: 另一种是刷新start-end所有数据
-        注： tushare每天有241个分钟数据，包含9:30集合竞价数据
+        注： tushare每天有241个分钟数据，包含9:30集合竞价数据(集合竞价成交+第一笔成交)
         交易日键值对应的分钟价格数据完整性检查：
             1. 股票， 要么数据完整241条数据，要么为空
             2. 指数和基金，无停牌，因此数据完整。
@@ -100,6 +100,7 @@ class XcReaderPrice(object):
         :param end:
         :param freq:
         :param astype: asset type. 'E' for stock, 'I' for index, 'FD' for fund.
+        :param merge_open: True, merge first 9:30 Kbar to follow KBar.
         :param resample: if use 1Min data resample to others
         :return:
         """
@@ -148,6 +149,19 @@ class XcReaderPrice(object):
                 if ii is None:
                     continue
                 out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
+
+        if merge_open:
+            out_mge = {}
+            for k, v in out.items():
+                print(out[k])
+                v[-2, 1] = v[-1, 1]  #Open
+                v[-2, 2] = np.max(v[-2:, 2]) # High
+                v[-2, 3] = np.min(v[-2:, 3]) # low
+                v[-2, 5] = np.sum(v[-2:, 5])  # volume
+                v[-2, 6] = np.sum(v[-2:, 6])  # amount
+                out_mge[k] = v[:-1, :]
+                print(out_mge[k])
+            out = out_mge
 
         out = list(out.values())
         out = np.concatenate(out)
