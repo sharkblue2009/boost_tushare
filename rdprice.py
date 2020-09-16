@@ -1,13 +1,14 @@
 """
 行情数据，每日更新
 """
+import pandas as pd
+
+from .apiwrapper import api_call
+from .proloader import TusNetLoader
+from .schema import *
 from .utils.xcbstutils import *
 # from .utils.memoize import lazyval
 from .xcdb.xcdb import *
-from .schema import *
-import pandas as pd
-from .proloader import TusNetLoader
-from .apiwrapper import api_call
 
 
 class XcReaderPrice(object):
@@ -83,7 +84,8 @@ class XcReaderPrice(object):
         return all_out
 
     @api_call
-    def get_price_minute(self, code, start, end, freq='1min', astype='E', merge_open=True, resample=False, flag=IOFLAG.READ_XC):
+    def get_price_minute(self, code, start, end, freq='1min', astype='E', merge_open=True, resample=False,
+                         flag=IOFLAG.READ_XC):
         """
         按日存取股票的分钟线数据
         1. 如当日停牌无交易，则存入空数据
@@ -151,17 +153,19 @@ class XcReaderPrice(object):
                 out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
 
         if merge_open:
-            out_mge = {}
+            # Handle the first row of every day. (the Kbar at 9:30)
+            tmpout1 = {}
             for k, v in out.items():
-                print(out[k])
-                v[-2, 1] = v[-1, 1]  #Open
-                v[-2, 2] = np.max(v[-2:, 2]) # High
-                v[-2, 3] = np.min(v[-2:, 3]) # low
-                v[-2, 5] = np.sum(v[-2:, 5])  # volume
-                v[-2, 6] = np.sum(v[-2:, 6])  # amount
-                out_mge[k] = v[:-1, :]
-                print(out_mge[k])
-            out = out_mge
+                tmpout1[k] = v
+                if v is not None:
+                    if v.shape[0] > 2:
+                        v[-2, 1] = v[-1, 1]  # Open
+                        v[-2, 2] = np.max(v[-2:, 2])  # High
+                        v[-2, 3] = np.min(v[-2:, 3])  # low
+                        v[-2, 5] = np.sum(v[-2:, 5])  # volume
+                        v[-2, 6] = np.sum(v[-2:, 6])  # amount
+                        tmpout1[k] = v[:-1, :]
+            out = tmpout1
 
         out = list(out.values())
         out = np.concatenate(out)

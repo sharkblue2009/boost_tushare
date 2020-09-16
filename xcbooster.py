@@ -1,9 +1,6 @@
 """
 CN Tushare Cache Reader.
 """
-
-from .xcdb.zleveldb import *
-from .xcdb.zlmdb import *
 from .apiwrapper import set_algo_instance
 from .rdbasic import XcReaderBasic
 from .rdfinance import XcReaderFinance
@@ -12,6 +9,8 @@ from .dxupdater import XcUpdaterPrice
 from .dxchecker import XcCheckerPrice
 from .utils.memoize import lazyval
 from .proloader import netloader_init, TusNetLoader
+# from .xcdb.zleveldb import *
+from .xcdb.zlmdb import *
 
 
 class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice, XcCheckerPrice):
@@ -36,9 +35,10 @@ class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice
             # , write_buffer_size = 0x400000, block_size = 0x4000,
             # max_file_size = 0x1000000, lru_cache_size = 0x100000, bloom_filter_bits = 0
         else:
-            self.master_db = XcLevelDB(LEVELDB_NAME, readonly=False)
-            self.acc = XcLevelDBAccessor
-            self.facc = partial(XcLevelDBAccessor, self.master_db)
+            # self.master_db = XcLevelDB(LEVELDB_NAME, readonly=False)
+            # self.acc = XcLevelDBAccessor
+            # self.facc = partial(XcLevelDBAccessor, self.master_db)
+            pass
 
         if xctus_last_date is None:
             """
