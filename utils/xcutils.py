@@ -1,8 +1,8 @@
 """
 Utils
 """
-import pandas as pd
 import logbook
+import pandas as pd
 
 log = logbook.Logger('utl')
 
@@ -357,3 +357,75 @@ def integrity_check_kd_vmin(dt, dtval, trade_days, susp_info=None, freq='1min', 
             log.info('[!KDVMIN]-: {}-{}:: {}-{} '.format(code, dt, len(susp), len(data)))
 
     return b_vld
+
+
+import numpy as np
+
+
+def df_to_sarray(df):
+    """
+    Convert a pandas DataFrame object to a numpy structured array.
+    This is functionally equivalent to but more efficient than
+    np.array(df.to_array())
+
+    From: http://stackoverflow.com/questions/30773073/save-pandas-dataframe-using-h5py-for-interoperabilty-with-other-hdf5-readers
+          https://stackoverflow.com/questions/13187778/convert-pandas-dataframe-to-numpy-array/35971974
+    Parameters
+    ----------
+    df : dataframe
+         the data frame to convert
+
+    Returns
+    -------
+    z : ndarray
+        a numpy structured array representation of df
+    """
+    v = df.values
+    cols = df.columns
+
+    # if six.PY2:  # python 2 needs .encode() but 3 does not
+    #     types = [(cols[i].encode(), df[k].dtype.type) for (i, k) in enumerate(cols)]
+    # else:
+    types = [(cols[i], df[k].dtype.type) for (i, k) in enumerate(cols)]
+
+    dtype = np.dtype(types)
+    z = np.zeros(v.shape[0], dtype)
+    for (i, k) in enumerate(z.dtype.names):
+        z[k] = v[:, i]
+    return z
+
+
+def sarray_to_df(sarray, index_column='index'):
+    """
+    Convert from a structured array back to a Pandas Dataframe
+
+    Parameters
+    ----------
+    sarray : array
+             numpy structured array
+
+    index_column : str
+                   The name of the index column.  Default: 'index'
+
+    Returns
+    -------
+     : dataframe
+       A pandas dataframe
+    """
+
+    def remove_field_name(a, name):
+        names = list(a.dtype.names)
+        if name in names:
+            names.remove(name)
+        b = a[names]
+        return b
+
+    if index_column is not None:
+        index = sarray[index_column]
+        clean_array = remove_field_name(sarray, 'index')
+    else:
+        clean_array = sarray
+        index = None
+    columns = clean_array.dtype.names
+
+    return pd.DataFrame(data=sarray, index=index, columns=columns)

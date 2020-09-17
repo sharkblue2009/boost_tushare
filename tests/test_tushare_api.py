@@ -9,9 +9,10 @@ trade_date = '20191010'
 start_date = '20200301'
 end_date = '20200317'
 
-df = pro.index_weight(index_code='399300.SZ', trade_date=trade_date)
+df = pro.index_weight(index_code='399300.SZ', trade_date='20191031')
 
 df = ts.pro_bar('000785.SZ', asset='E', start_date=start_date, end_date=end_date, freq='D')
+df = ts.pro_bar('000785.SZ', asset='E', start_date=start_date, end_date=end_date, freq='5min')
 
 df = pro.daily_basic(ts_code='000785.SZ', start_date=start_date, end_date=end_date,
                      fields=[

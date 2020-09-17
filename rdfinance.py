@@ -4,7 +4,7 @@
 from .xcdb.xcdb import *
 from .schema import *
 from .proloader import TusNetLoader
-from .utils.xcbstutils import QUARTER_END
+from .utils.xcutils import QUARTER_END
 from .apiwrapper import api_call
 
 

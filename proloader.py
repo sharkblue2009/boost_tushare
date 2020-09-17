@@ -3,7 +3,7 @@ from ._passwd import TUS_TOKEN
 
 from .xcdb.xcdb import DATE_FORMAT, DATETIME_FORMAT
 from .schema import *
-from .utils.xcbstutils import *
+from .utils.xcutils import *
 from .utils.qos import ThreadingTokenBucket
 
 

@@ -1,12 +1,16 @@
-import copy
-from logbook import Logger
+"""
+numpy对象，做序列化（pickle）的时候，f4, f8, RAW, Unicode类型操作效率基本相当，
+    object类型效率很低，原因可能是object是对象的引用，因此需要两层解析。
+    结构体类型效率narray, 低于单一类型。
+    pickle对structed_narray的读写效率，也略高于对recarray的效率(10%左右的提升)
+"""
 import pickle
-from functools import partial
+from abc import abstractmethod
 from enum import IntEnum
 
-import pandas as pd
 import numpy as np
-from abc import abstractmethod
+import pandas as pd
+from logbook import Logger
 
 log = Logger('xcdb')
 
@@ -65,11 +69,10 @@ class XCacheDB(object):
 class KVTYPE(IntEnum):
     TPK_RAW = 1  # Raw key, o order
     TPK_DATE = 2  # Datatime,
-    TPK_INT_SEQ = 4  # sequence
+    TPK_INT_ID = 4  # integer sequence
 
     TPV_DFRAME = 11  # metadata colume names
-    TPV_SER_ROW = 12  # metadata colume names
-    TPV_SER_COL = 13  #
+    TPV_SERIES = 13  #
     TPV_NARR_1D = 14
     TPV_NARR_2D = 15
 
@@ -119,9 +122,9 @@ class XcAccessor(object):
                 real_key = force_bytes(key.strftime('%Y%m%d'))
             else:
                 real_key = force_bytes(key)
-        elif self.tpkey == KVTYPE.TPK_DATE:
-            if isinstance(key, pd.Timestamp):
-                real_key = force_bytes(key.strftime('%Y%m%d'))
+        elif self.tpkey == KVTYPE.TPK_INT_ID:
+            if isinstance(key, int):
+                real_key = force_bytes(str(key))
             else:
                 real_key = force_bytes(key)
         else:
@@ -154,24 +157,24 @@ class XcAccessor(object):
                     return pickle.dumps(val.values), val.values
                 else:
                     return None, pd.DataFrame(columns=self.metadata['columns'])
-        elif self.tpval == KVTYPE.TPV_SER_ROW:
-            if isinstance(val, pd.Series):
-                if val.empty:
-                    return NOT_EXIST, pd.Series(index=self.metadata['columns'])
-                if self.metadata:
-                    val = val.reindex(index=self.metadata['columns'])
-                return pickle.dumps(val.values), val
-        elif self.tpval == KVTYPE.TPV_SER_COL:
-            if isinstance(val, pd.Series):
-                if val.empty:
-                    return NOT_EXIST, pd.Series()
-                return pickle.dumps(val.values), val
-        elif self.tpval == KVTYPE.TPV_NARR_1D or \
-                self.tpval == KVTYPE.TPV_NARR_2D:
-            if isinstance(val, np.ndarray):
-                if val.size == 0:
-                    return NOT_EXIST, val
-                return pickle.dumps(val), val
+        elif self.tpval == KVTYPE.TPV_SERIES:
+            if 'columns' in self.metadata.keys():
+                if isinstance(val, pd.Series):
+                    if val.empty:
+                        return NOT_EXIST, pd.Series(index=self.metadata['columns'])
+                    if self.metadata:
+                        val = val.reindex(index=self.metadata['columns'])
+                    return pickle.dumps(val.values), val
+            else:
+                if isinstance(val, pd.Series):
+                    if val.empty:
+                        return NOT_EXIST, pd.Series()
+                    return pickle.dumps(val.values), val
+        # elif self.tpval == KVTYPE.TPV_NARR_2D:
+        #     if isinstance(val, np.ndarray):
+        #         if val.size == 0:
+        #             return NOT_EXIST, val
+        #         return pickle.dumps(val), val
         else:
             return force_bytes(val), val
 
@@ -199,32 +202,27 @@ class XcAccessor(object):
                 else:
                     val = pickle.loads(val)
                     realval = val
-        elif self.tpval == KVTYPE.TPV_SER_ROW:
-            cols = self.metadata['columns']
-            if val == NOT_EXIST:
-                realval = pd.Series(index=cols)
+        elif self.tpval == KVTYPE.TPV_SERIES:
+            if 'columns' in self.metadata.keys():
+                cols = self.metadata['columns']
+                if val == NOT_EXIST:
+                    realval = pd.Series(index=cols)
+                else:
+                    val = pickle.loads(val)
+                    realval = pd.Series(data=val, index=cols)
             else:
-                val = pickle.loads(val)
-                realval = pd.Series(data=val, index=cols)
-        elif self.tpval == KVTYPE.TPV_SER_COL:
-            if val == NOT_EXIST:
-                realval = pd.Series()
-            else:
-                val = pickle.loads(val)
-                realval = pd.Series(data=val)
-        elif self.tpval == KVTYPE.TPV_NARR_1D:
-            if val == NOT_EXIST:
-                realval = np.empty((0,))
-            else:
-                val = pickle.loads(val)
-                realval = val
-        elif self.tpval == KVTYPE.TPV_NARR_2D:
-            cols = self.metadata['columns']
-            if val == NOT_EXIST:
-                realval = np.empty((0, len(cols)))
-            else:
-                val = pickle.loads(val)
-                realval = val
+                if val == NOT_EXIST:
+                    realval = pd.Series()
+                else:
+                    val = pickle.loads(val)
+                    realval = pd.Series(data=val)
+        # elif self.tpval == KVTYPE.TPV_NARR_2D:
+        #     cols = self.metadata['columns']
+        #     if val == NOT_EXIST:
+        #         realval = np.empty((0, len(cols)))
+        #     else:
+        #         val = pickle.loads(val)
+        #         realval = val
         else:
             realval = val
 

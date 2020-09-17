@@ -6,7 +6,7 @@ import pandas as pd
 from .apiwrapper import api_call
 from .proloader import TusNetLoader
 from .schema import *
-from .utils.xcbstutils import *
+from .utils.xcutils import *
 # from .utils.memoize import lazyval
 from .xcdb.xcdb import *
 
