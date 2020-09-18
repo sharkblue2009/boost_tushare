@@ -132,6 +132,9 @@ class XcReaderPrice(object):
                     ii = ii.set_index('trade_time', drop=True)
                     ii.index = pd.to_datetime(ii.index, format=DATETIME_FORMAT)
                     ii = ii.reindex(index=minindex[dd])
+                    if (ii.volume == 0.0).all():
+                        # 如果全天无交易，vol == 0, 则清空df.
+                        ii.loc[:, :] = np.nan
                 out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
 
         if merge_open:

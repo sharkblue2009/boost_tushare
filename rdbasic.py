@@ -23,7 +23,6 @@ class XcReaderBasic(object):
     _trade_cal_1min = None
     _trade_cal_5min = None
 
-
     @property
     def trade_cal_raw(self):
         if self._trade_cal_raw is None:
@@ -63,8 +62,6 @@ class XcReaderBasic(object):
         if self._trade_cal_5min is None:
             self._trade_cal_5min = session_day_to_min_tus(self.trade_cal, '5min')
         return self._trade_cal_5min
-
-
 
     @lazyval
     def index_info(self):
@@ -234,7 +231,7 @@ class XcReaderBasic(object):
         描述：获取申万行业分类，包括申万28个一级分类，104个二级分类，227个三级分类的列表信息
         :return:
         """
-        db = self.facc(TusSdbs.SDB_INDEX_CLASSIFY.value, INDEX_CLASSIFY_META, readonly=True)
+        db = self.facc(TusSdbs.SDB_INDEX_CLASSIFY.value, INDEX_CLASSIFY_META)
 
         kk = level.upper()
 

@@ -74,8 +74,7 @@ class XcReaderFinance(object):
         report_date = QUARTER_END(tperiod)
         dtkey = report_date.strftime(DATE_FORMAT)
 
-        db = self.facc((TusSdbs.SDB_STOCK_FIN_CASHFLOW.value + code),
-                       STOCK_FIN_CASHFLOW_META, readonly=True)
+        db = self.facc((TusSdbs.SDB_STOCK_FIN_CASHFLOW.value + code), STOCK_FIN_CASHFLOW_META)
         if flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val

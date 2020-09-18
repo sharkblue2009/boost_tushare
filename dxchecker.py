@@ -57,7 +57,7 @@ class XcCheckerPrice(object):
                 dtkey = dd.strftime(DATE_FORMAT)
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
                 if val is not None:
-                    bvalid = integrity_check_kd_vmin(dd, val, self.trade_cal_index,
+                    bvalid = integrity_check_kd_vmin(dd, val[:, 4], self.trade_cal_index,
                                                      self.stock_suspend(code), freq=freq, code=code)
                     if not bvalid:
                         db.remove(dtkey)

@@ -3,8 +3,9 @@ Utils
 """
 import logbook
 import pandas as pd
+import numpy as np
 
-log = logbook.Logger('utl')
+log = logbook.Logger('bstutl')
 
 
 def nadata_iter(ar_flags, max_length):
@@ -376,7 +377,7 @@ def integrity_check_kd_vmin(dt, dtval, trade_days, susp_info=None, freq='1min', 
 
     b_vld = False
     if dt in trade_days:
-        vldlen = np.sum(dtval != 0)
+        vldlen = np.sum(~np.isnan(dtval))
         if susp_info is None:
             if vldlen == nbars:
                 b_vld = True
@@ -400,9 +401,6 @@ def integrity_check_kd_vmin(dt, dtval, trade_days, susp_info=None, freq='1min', 
             log.info('[!KDVMIN]-: {}-{}:: {}-{} '.format(code, dt, len(susp), vldlen))
 
     return b_vld
-
-
-import numpy as np
 
 
 def df_to_sarray(df):

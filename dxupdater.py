@@ -124,8 +124,7 @@ class XcUpdaterPrice(object):
                                 self.trade_cal_index)
 
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
-        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq),
-                       EQUITY_MINUTE_PRICE_META, readonly=True)
+        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq),                       EQUITY_MINUTE_PRICE_META)
 
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
@@ -133,7 +132,7 @@ class XcUpdaterPrice(object):
             if val is not None:
                 bvalid[n] = True
                 if n >= len(vdates) - rollback:
-                    bvalid[n] = integrity_check_kd_vmin(dd, val, self.trade_cal_index,
+                    bvalid[n] = integrity_check_kd_vmin(dd, val[:, 4], self.trade_cal_index,
                                                         self.stock_suspend(code), freq=freq, code=code)
             else:
                 bvalid[n] = False
