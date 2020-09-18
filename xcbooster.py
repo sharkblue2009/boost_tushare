@@ -48,7 +48,8 @@ class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice
         else:
             self.xctus_last_date = xctus_last_date
 
-        print('Last date:{}'.format(self.xctus_last_date))
+        print('TuBooster: last trade date:{}'.format(self.xctus_last_date))
+        self.get_trade_cal()
 
         super(XcTusBooster, self).__init__()
 

@@ -42,8 +42,7 @@ def cntus_update_basic():
     log.info('Finished')
 
     booster = tusbooster_init()
-    XcTusBooster.trade_cal.update(booster)
-    XcTusBooster.trade_cal_index.update(booster)
+    XcTusBooster.get_trade_cal(IOFLAG.READ_NETDB)
 
     start_date = '20100101'
     end_date = pd.Timestamp.today().strftime('%Y%m%d')

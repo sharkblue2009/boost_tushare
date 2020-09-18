@@ -143,18 +143,22 @@ class XcAccessor(object):
                 if isinstance(val, pd.DataFrame):
                     if val.empty:
                         return NOT_EXIST, pd.DataFrame(columns=self.metadata['columns'])
-                    if self.metadata:
-                        val = val.reindex(columns=self.metadata['columns'])
-                    return pickle.dumps(val.values), val
+                    val = val.reindex(columns=self.metadata['columns'])
+                    dbval = val.values
+                    if 'dtype' in self.metadata.keys():
+                        dbval = dbval.astype(self.metadata['dtype'])
+                    return pickle.dumps(dbval), val
                 else:
                     return None, pd.DataFrame(columns=self.metadata['columns'])
             elif vtype == KVTYPE.TPV_NARR_2D:
                 if isinstance(val, pd.DataFrame):
                     if val.empty:
                         return NOT_EXIST, np.empty((0, len(self.metadata['columns'])))
-                    if self.metadata:
-                        val = val.reindex(columns=self.metadata['columns'])
-                    return pickle.dumps(val.values), val.values
+                    val = val.reindex(columns=self.metadata['columns'])
+                    dbval = val.values
+                    if 'dtype' in self.metadata.keys():
+                        dbval = dbval.astype(self.metadata['dtype'])
+                    return pickle.dumps(dbval), dbval
                 else:
                     return None, pd.DataFrame(columns=self.metadata['columns'])
         elif self.tpval == KVTYPE.TPV_SERIES:
@@ -162,14 +166,19 @@ class XcAccessor(object):
                 if isinstance(val, pd.Series):
                     if val.empty:
                         return NOT_EXIST, pd.Series(index=self.metadata['columns'])
-                    if self.metadata:
-                        val = val.reindex(index=self.metadata['columns'])
-                    return pickle.dumps(val.values), val
+                    val = val.reindex(index=self.metadata['columns'])
+                    dbval = val.values
+                    if 'dtype' in self.metadata.keys():
+                        dbval = dbval.astype(self.metadata['dtype'])
+                    return pickle.dumps(dbval), val
             else:
                 if isinstance(val, pd.Series):
                     if val.empty:
                         return NOT_EXIST, pd.Series()
-                    return pickle.dumps(val.values), val
+                    dbval = val.values
+                    if 'dtype' in self.metadata.keys():
+                        dbval = dbval.astype(self.metadata['dtype'])
+                    return pickle.dumps(dbval), val
         # elif self.tpval == KVTYPE.TPV_NARR_2D:
         #     if isinstance(val, np.ndarray):
         #         if val.size == 0:
@@ -194,28 +203,28 @@ class XcAccessor(object):
                 if val == NOT_EXIST:
                     realval = pd.DataFrame(columns=cols)
                 else:
-                    val = pickle.loads(val)
-                    realval = pd.DataFrame(data=val, columns=cols)
+                    dbval = pickle.loads(val)
+                    realval = pd.DataFrame(data=dbval, columns=cols)
             elif vtype == KVTYPE.TPV_NARR_2D:
                 if val == NOT_EXIST:
                     realval = np.empty((0, len(cols)))
                 else:
-                    val = pickle.loads(val)
-                    realval = val
+                    dbval = pickle.loads(val)
+                    realval = dbval
         elif self.tpval == KVTYPE.TPV_SERIES:
             if 'columns' in self.metadata.keys():
                 cols = self.metadata['columns']
                 if val == NOT_EXIST:
                     realval = pd.Series(index=cols)
                 else:
-                    val = pickle.loads(val)
-                    realval = pd.Series(data=val, index=cols)
+                    dbval = pickle.loads(val)
+                    realval = pd.Series(data=dbval, index=cols)
             else:
                 if val == NOT_EXIST:
                     realval = pd.Series()
                 else:
-                    val = pickle.loads(val)
-                    realval = pd.Series(data=val)
+                    dbval = pickle.loads(val)
+                    realval = pd.Series(data=dbval)
         # elif self.tpval == KVTYPE.TPV_NARR_2D:
         #     cols = self.metadata['columns']
         #     if val == NOT_EXIST:

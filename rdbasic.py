@@ -1,13 +1,13 @@
 """
 基础数据，不定期更新
 """
+
+from .apiwrapper import api_call
+from .proloader import TusNetLoader
+from .schema import *
+from .utils.memoize import lazyval
 from .utils.xcutils import session_day_to_min_tus, MONTH_END, MONTH_START
 from .xcdb.xcdb import *
-from .schema import *
-import pandas as pd
-from .utils.memoize import lazyval
-from .proloader import TusNetLoader
-from .apiwrapper import api_call
 
 
 class XcReaderBasic(object):
@@ -18,23 +18,51 @@ class XcReaderBasic(object):
     xctus_last_date = None
     netloader: TusNetLoader = None
 
-    @lazyval
-    def trade_cal(self):
-        return self.get_trade_cal()
+    _trade_cal_raw = None
+    _trade_cal_day = None
+    _trade_cal_1min = None
+    _trade_cal_5min = None
+    _trade_cal_15min = None
+    _trade_cal_30min = None
+    _trade_cal_60min = None
+    _trade_cal_120min = None
 
-    @lazyval
-    def trade_cal_index(self):
+    @property
+    def trade_cal_raw(self):
+        if self._trade_cal_raw is None:
+            self._trade_cal_raw = self.get_trade_cal()
+            all_trade_cal = pd.to_datetime(self._trade_cal_raw.tolist(), format='%Y%m%d')
+            self._trade_cal_day = all_trade_cal[all_trade_cal < self.xctus_last_date]
+
+        return self._trade_cal_raw
+
+    @trade_cal_raw.setter
+    def trade_cal_raw(self, value):
+        self._trade_cal_raw = value
+        all_trade_cal = pd.to_datetime(self._trade_cal_raw.tolist(), format='%Y%m%d')
+        self._trade_cal_day = all_trade_cal[all_trade_cal < self.xctus_last_date]
+        self._trade_cal_1min = None
+        self._trade_cal_5min = None
+
+    @property
+    def trade_cal_1min(self):
+        if self._trade_cal_1min is None:
+            self._trade_cal_1min = session_day_to_min_tus(self.trade_cal, '1min')
+        return self._trade_cal_1min
+
+    @property
+    def trade_cal_5min(self):
+        if self._trade_cal_5min is None:
+            self._trade_cal_5min = session_day_to_min_tus(self.trade_cal, '5min')
+        return self._trade_cal_5min
+
+    @property
+    def trade_cal(self):
         """
         当前有效的交易日历
         :return:
         """
-        all_trade_cal = pd.to_datetime(self.trade_cal.tolist(), format='%Y%m%d')
-        valid_trade_cal = all_trade_cal[all_trade_cal < self.xctus_last_date]
-        return valid_trade_cal
-
-    @lazyval
-    def trade_cal_index_minutes(self):
-        return session_day_to_min_tus(self.trade_cal_index, freq='1Min')
+        return self._trade_cal_day
 
     @lazyval
     def index_info(self):
@@ -92,21 +120,20 @@ class XcReaderBasic(object):
     ##########################################################
     @api_call
     def get_trade_cal(self, flag=IOFLAG.READ_XC):
-        db = self.facc(TusSdbs.SDB_TRADE_CALENDAR.value,
-                       TRD_CAL_META)
+        db = self.facc(TusSdbs.SDB_TRADE_CALENDAR.value, TRD_CAL_META)
+
         kk = 'trade_cal'
-        if flag == IOFLAG.READ_XC:
-            val = db.load(kk)
-            if val is not None:
-                return val
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
+            tcal = db.load(kk)
+            if tcal is not None:
+                self.trade_cal_raw = tcal
+                return tcal
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_trade_cal()
-            return db.save(kk, info)
-        elif flag == IOFLAG.READ_DBONLY:
-            val = db.load(kk)
-            return val
-        elif flag == IOFLAG.READ_NETDB:
-            info = self.netloader.set_trade_cal()
-            return db.save(kk, info)
+            tcal = db.save(kk, info)
+
+            self.trade_cal_raw = tcal
+            return tcal
         return
 
     @api_call
@@ -125,16 +152,11 @@ class XcReaderBasic(object):
         db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
         kk = TusKeys.INDEX_INFO.value
 
-        if flag == IOFLAG.READ_XC:
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             if val is not None:
                 return val
-            info = self.netloader.set_index_info()
-            return db.save(kk, info)
-        elif flag == IOFLAG.READ_DBONLY:
-            val = db.load(kk)
-            return val
-        elif flag == IOFLAG.READ_NETDB:
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_index_info()
             return db.save(kk, info)
         return
@@ -145,18 +167,14 @@ class XcReaderBasic(object):
         db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
         kk = TusKeys.STOCK_INFO.value
 
-        if flag == IOFLAG.READ_XC:
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             if val is not None:
                 return val
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_stock_info()
             return db.save(kk, info)
-        elif flag == IOFLAG.READ_DBONLY:
-            val = db.load(kk)
-            return val
-        elif flag == IOFLAG.READ_NETDB:
-            info = self.netloader.set_stock_info()
-            return db.save(kk, info)
+
         return
 
     @api_call
@@ -168,18 +186,14 @@ class XcReaderBasic(object):
         db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
         kk = TusKeys.FUND_INFO.value
 
-        if flag == IOFLAG.READ_XC:
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             if val is not None:
                 return val
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_fund_info()
             return db.save(kk, info)
-        elif flag == IOFLAG.READ_DBONLY:
-            val = db.load(kk)
-            return val
-        elif flag == IOFLAG.READ_NETDB:
-            info = self.netloader.set_fund_info()
-            return db.save(kk, info)
+
         return
 
     @api_call
@@ -194,26 +208,22 @@ class XcReaderBasic(object):
         # 找到所处月份的第一个交易日
         trdt = pd.Timestamp(date)
         if month_start:
-            tdday = MONTH_START(trdt, self.trade_cal_index)
+            tdday = MONTH_START(trdt, self.trade_cal)
         else:
-            tdday = MONTH_END(trdt, self.trade_cal_index)
+            tdday = MONTH_END(trdt, self.trade_cal)
         if tdday is None:
             return
         dtkey = tdday.strftime(DATE_FORMAT)
 
         db = self.facc((TusSdbs.SDB_INDEX_WEIGHT.value + index_symbol), INDEX_WEIGHT_META)
-        if flag == IOFLAG.READ_XC:
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             if val is not None:
                 return val
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_index_weight(index_symbol, tdday)
             return db.save(dtkey, info)
-        elif flag == IOFLAG.READ_DBONLY:
-            val = db.load(dtkey)
-            return val
-        elif flag == IOFLAG.READ_NETDB:
-            info = self.netloader.set_index_weight(index_symbol, tdday)
-            return db.save(dtkey, info)
+
         return
 
     @api_call
@@ -229,18 +239,14 @@ class XcReaderBasic(object):
 
         kk = level.upper()
 
-        if flag == IOFLAG.READ_XC:
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             if val is not None:
                 return val
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_index_classify(level, src)
             return db.save(kk, info)
-        elif flag == IOFLAG.READ_DBONLY:
-            val = db.load(kk)
-            return val
-        elif flag == IOFLAG.READ_NETDB:
-            info = self.netloader.set_index_classify(level, src)
-            return db.save(kk, info)
+
         return
 
     @api_call
@@ -254,16 +260,12 @@ class XcReaderBasic(object):
 
         kk = index_code.upper()
 
-        if flag == IOFLAG.READ_XC:
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             if val is not None:
                 return val
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_index_member(index_code)
             return db.save(kk, info)
-        elif flag == IOFLAG.READ_DBONLY:
-            val = db.load(kk)
-            return val
-        elif flag == IOFLAG.READ_NETDB:
-            info = self.netloader.set_index_member(index_code)
-            return db.save(kk, info)
+
         return

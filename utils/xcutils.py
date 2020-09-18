@@ -116,54 +116,97 @@ def QUARTER_END(date, trade_days=None):
     return None
 
 
-def gen_keys_monthly(start_dt, end_dt, asset_life=None, trade_days=None):
+def gen_keys_monthly(start_dt, end_dt, asset_life, trade_cal):
     """
     根据当前交易品种的有效交易日历， 产生月度keys
     :param start_dt:
     :param end_dt:
     :param asset_life: tuple(born_date, dead_date)
+    :param trade_cal:
     :return:
     """
-    limit_start, limit_end = asset_life
+    if asset_life is not None:
+        l_ss, l_ee = asset_life
+        tstart = max([l_ss, start_dt])
+        tend = min([l_ee, end_dt])
+    else:
+        tstart = start_dt
+        tend = end_dt
 
-    tstart = max([limit_start, start_dt])
-    tend = min([limit_end, end_dt, trade_days[-1]])
+    if trade_cal is not None:
+        tend = min(tend, trade_cal[-1])
 
     m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
     m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
+    key_index = pd.date_range(m_start, m_end, freq='MS')
 
-    vdates = pd.date_range(m_start, m_end, freq='MS')
-    return vdates
+    return key_index
 
 
-def gen_keys_daily(start_dt, end_dt, asset_life=None, trade_days=None):
+def gen_dayindex_monthly(month_sess, trade_cal):
     """
 
+    :param month_sess: monthly session index
+    :param trade_cal: day trade_cal
+    :return: dict, {month_key: day_sess in the month}
+    """
+    dayindex = {}
+    alldays = pd.DatetimeIndex([])
+    for n, v in enumerate(month_sess):
+        dayindex[v] = trade_cal[(trade_cal.month == v.month) & (trade_cal.year == v.year)]
+        alldays = alldays.append(dayindex[v])
+
+    return dayindex, alldays
+
+
+def gen_keys_daily(start_dt, end_dt, asset_life, trade_cal):
+    """
+    根据当前交易品种的有效交易日历， 产生日度keys
     :param start_dt:
     :param end_dt:
-    :param asset_life:
-    :param trade_days:
+    :param asset_life: tuple(born_date, dead_date)
+    :param trade_cal: trade_cal index
     :return:
     """
-
-    limit_start, limit_end = asset_life
-
-    tstart = max([limit_start, start_dt])
-    tend = min([limit_end, end_dt])
-
-    if trade_days is None:
-        vdates = pd.date_range(tstart, tend, freq='D')
+    if asset_life is not None:
+        l_ss, l_ee = asset_life
+        tstart = max([l_ss, start_dt])
+        tend = min([l_ee, end_dt])
     else:
-        vdates = trade_days[(trade_days >= tstart) & (trade_days <= tend)]
-    return vdates
+        tstart = start_dt
+        tend = end_dt
+
+    if trade_cal is None:
+        key_index = pd.date_range(tstart, tend, freq='D')
+    else:
+        key_index = trade_cal[(trade_cal >= tstart) & (trade_cal <= tend)]
+    return key_index
 
 
-def gen_keys_quarterly(start_dt, end_dt, asset_life=None, last_trade_day=None):
+def gen_minindex_daily(day_sess, trade_cal_min):
+    """
+
+    :param month_sess: monthly session index
+    :param trade_cal_min: minute trade_cal
+    :return: dict, {month_key: day_sess in the month}
+    """
+    minindex = {}
+    allminutes = pd.DatetimeIndex([])
+    for n, v in enumerate(day_sess):
+        minindex[v] = trade_cal_min[(trade_cal_min.month == v.month) &
+                                    (trade_cal_min.year == v.year) & (trade_cal_min.day == v.day)]
+        allminutes = allminutes.append(minindex[v])
+
+    return minindex, allminutes
+
+
+def gen_keys_quarterly(start_dt, end_dt, asset_life=None, trade_cal=None):
     """
 
     :param start_dt:
     :param end_dt:
-    :param astype: asset type
+    :param asset_life: tuple(born_date, dead_date)
+    :param trade_cal:
     :return:
     """
 
@@ -171,28 +214,32 @@ def gen_keys_quarterly(start_dt, end_dt, asset_life=None, last_trade_day=None):
 
     # 当前交易品种的有效交易日历
     tstart = max([limit_start, start_dt])
-    tend = min([limit_end, end_dt, last_trade_day])
+    tend = min([limit_end, end_dt])
+
+    if trade_cal is not None:
+        tend = min(tend, trade_cal[-1])
 
     m_start = pd.Timestamp(year=tstart.year, month=1, day=1)
     m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
 
-    vdates = pd.date_range(m_start, m_end, freq='QS')
-    return vdates
+    key_index = pd.date_range(m_start, m_end, freq='QS')
+    return key_index
 
 
-def session_day_to_min_tus(day_sess, freq='1Min', market_open=True):
+def session_day_to_min_tus(day_sess, freq='1min', market_open=True):
     """
     Convert day based session to high frequency session
     :param day_sess:
     :param freq:
+    :param market_open: if include 9:30
     :return: DatetimeIndex
     """
     time_a = pd.Timedelta(hours=9, minutes=30)
     time_b = pd.Timedelta(hours=11, minutes=30)
     time_c = pd.Timedelta(hours=13, minutes=0)
     time_d = pd.Timedelta(hours=15, minutes=0)
-    cc = {'1min': '1Min', '5min': '5Min', '15min': '15Min', '30min': '30Min', '60min': '60Min', '120min': '120Min'}
-    freq_c = cc[freq]
+
+    freq_c = freq.replace('min', 'Min')
 
     if market_open:
         sides = None

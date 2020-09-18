@@ -1,18 +1,17 @@
 """
 财务数据，每季度更新
 """
-from .xcdb.xcdb import *
-from .schema import *
-from .proloader import TusNetLoader
-from .utils.xcutils import QUARTER_END
 from .apiwrapper import api_call
+from .proloader import TusNetLoader
+from .schema import *
+from .utils.xcutils import QUARTER_END
+from .xcdb.xcdb import *
 
 
 class XcReaderFinance(object):
     """
     Finance information loader
     """
-
     master_db = None
     netloader: TusNetLoader = None
 
@@ -29,8 +28,7 @@ class XcReaderFinance(object):
         report_date = QUARTER_END(tperiod)
         dtkey = report_date.strftime(DATE_FORMAT)
 
-        db = self.facc((TusSdbs.SDB_STOCK_FIN_INCOME.value + code),
-                       STOCK_FIN_INCOME_META)
+        db = self.facc((TusSdbs.SDB_STOCK_FIN_INCOME.value + code), STOCK_FIN_INCOME_META)
         if flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val
@@ -53,8 +51,7 @@ class XcReaderFinance(object):
         report_date = QUARTER_END(tperiod)
         dtkey = report_date.strftime(DATE_FORMAT)
 
-        db = self.facc((TusSdbs.SDB_STOCK_FIN_BALANCE.value + code),
-                       STOCK_FIN_BALANCE_META)
+        db = self.facc((TusSdbs.SDB_STOCK_FIN_BALANCE.value + code), STOCK_FIN_BALANCE_META)
         if flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val

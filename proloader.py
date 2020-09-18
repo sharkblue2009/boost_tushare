@@ -11,7 +11,7 @@ class XcNLBasic(object):
     pro_api = None
 
     def set_trade_cal(self):
-        info = self.pro_api.trade_cal()
+        info = self.pro_api.trade_cal_raw()
         info_to_db = info[info['is_open'] == 1].loc[:, 'cal_date']
         return info_to_db
 
@@ -197,7 +197,7 @@ class XcNLPrice(object):
         end_raw = end.strftime(DATE_FORMAT)
         self.ts_token.block_consume(1)
         data = self.pro_api.daily_basic(ts_code=code, start_date=start_raw, end_date=end_raw,
-                                        fields=fcols)
+                                        fields=fcols+['trade_date'])
 
         return data
 
@@ -212,7 +212,7 @@ class XcNLPrice(object):
         start_raw = start.strftime(DATE_FORMAT)
         end_raw = end.strftime(DATE_FORMAT)
         self.ts_token.block_consume(1)
-        data = self.pro_api.adj_factor(ts_code=code, start_date=start_raw, end_date=end_raw, fields=fcols)
+        data = self.pro_api.adj_factor(ts_code=code, start_date=start_raw, end_date=end_raw, fields=fcols+['trade_date'])
 
         return data
 

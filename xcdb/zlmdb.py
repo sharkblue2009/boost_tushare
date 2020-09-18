@@ -12,7 +12,7 @@ from .xcdb import *
 
 log = Logger('lmdb')
 
-LMDB_NAME = 'D:/Database/stock_db/TUS_LMDB'
+LMDB_NAME = 'D:/Database/stock_db/TusDBv2'
 
 
 class XcLMDB(XCacheDB):
@@ -27,7 +27,7 @@ class XcLMDB(XCacheDB):
         if not self.name in DBS_OPENED.keys():
             log.info('Open DB: {}'.format(self.name))
             DBS_OPENED[self.name] = lmdb.open(
-                self.name, create=True, max_dbs=1000000, readonly=readonly, map_size=64 * 0x40000000, **kwargs)
+                self.name, create=True, max_dbs=1000000, readonly=readonly, map_size=1 * 0x4000000, **kwargs)
         else:
             raise FileExistsError('Already opened')
 

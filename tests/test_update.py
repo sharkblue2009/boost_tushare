@@ -1,5 +1,6 @@
 import logbook, sys
 from boost_tushare.xcbooster import *
+from boost_tushare.xcommands import *
 from boost_tushare import tusbooster_init
 
 if __name__ == '__main__':

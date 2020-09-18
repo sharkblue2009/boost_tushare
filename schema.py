@@ -49,29 +49,18 @@ ASSET_INFO_META = {
     'tpk': KVTYPE.TPK_RAW,
     'tpv': KVTYPE.TPV_DFRAME,
     'columns': ['ts_code', 'exchange', 'name', 'start_date', 'end_date'],
-    'dtype': [('ts_code', 'U10'), ('exchange', 'U8'), ('name', 'U32'), ('start_date', 'U8'), ('end_date', 'U8')]
 }
 
 INDEX_WEIGHT_META = {
     'tpk': KVTYPE.TPK_DATE,
     'tpv': KVTYPE.TPV_DFRAME,
     'columns': ['trade_date', 'con_code', 'weight'],
-    'dtype': [
-        ('trade_date', 'U8'),
-        ('con_code', 'U10'),
-        ('weight', 'f8'),
-    ]
 }
 
 INDEX_CLASSIFY_META = {
     'tpk': KVTYPE.TPK_RAW,
     'tpv': KVTYPE.TPV_DFRAME,
     'columns': ['index_code', 'industry_name', 'level'],
-    'dtype': [
-        ('index_code', 'U10'),
-        ('industry_name', 'U20'),
-        ('level', 'U10'),
-    ]
 }
 
 INDEX_MEMBER_META = {
@@ -85,15 +74,6 @@ INDEX_MEMBER_META = {
         'in_date',
         'out_date',
         'is_new',
-    ],
-    'dtype': [
-        ('index_code', 'U10'),
-        ('index_name', 'U20'),
-        ('con_code', 'U10'),
-        ('con_name', 'U20'),
-        ('in_date', 'U8'),
-        ('out_date', 'U8'),
-        ('is_new', 'U8'),
     ],
 }
 
@@ -116,30 +96,13 @@ STOCK_XDXR_META = {
                 # 'base_date',
                 # 'base_share',
                 ],
-    'dtype': [
-        ('end_date', 'U8'),
-        ('ann_date', 'U8'),
-        ('div_proc', 'U8'),
-        ('stk_div', 'f8'),
-        ('stk_bo_rate', 'f8'),
-        ('stk_co_rate', 'f8'),
-        ('cash_div', 'f8'),
-        ('cash_div_tax', 'f8'),
-        ('record_date', 'U8'),
-        ('ex_date', 'U8'),
-        ('pay_date', 'U8'),
-        ('div_listdate', 'U8'),
-        ('imp_ann_date', 'U8'),
-        # 'base_date',
-        # 'base_share',
-    ]
 }
 
 EQUITY_DAILY_PRICE_META = {
     'tpk': KVTYPE.TPK_DATE,
     'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
-        'trade_date',
+        # 'trade_date',
         'open',
         'high',
         'low',
@@ -147,23 +110,14 @@ EQUITY_DAILY_PRICE_META = {
         'volume',
         'amount',
     ],
-    'dtype': [
-        ('trade_date', 'U8'),
-        ('open', 'f8'),
-        ('high', 'f8'),
-        ('low', 'f8'),
-        ('close', 'f8'),
-        ('volume', 'f8'),
-        ('amount', 'f8'),
-    ]
-
+    'dtype': 'f8',
 }
 
 EQUITY_MINUTE_PRICE_META = {
     'tpk': KVTYPE.TPK_DATE,
     'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
-        'trade_time',  # 2020-03-02 09:50:00
+        # 'trade_time',  # 2020-03-02 09:50:00
         'open',
         'high',
         'low',
@@ -171,35 +125,24 @@ EQUITY_MINUTE_PRICE_META = {
         'volume',
         'amount',
     ],
-    'dtype': [
-        ('trade_time', 'U20'),
-        ('open', 'f8'),
-        ('high', 'f8'),
-        ('low', 'f8'),
-        ('close', 'f8'),
-        ('volume', 'f8'),
-        ('amount', 'f8'),
-    ]
+    'dtype': 'f8',
 }
 
 STOCK_ADJFACTOR_META = {
     'tpk': KVTYPE.TPK_DATE,
     'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
-        'trade_date',
+        # 'trade_date',
         'adj_factor',
     ],
-    'dtype': [
-        ('trade_date', 'U8'),
-        ('adj_factor', 'f8'),
-    ]
+    'dtype': 'f8',
 }
 
 STOCK_DAILY_INFO_META = {
     'tpk': KVTYPE.TPK_DATE,
     'tpv': KVTYPE.TPV_DFRAME,
     'columns': [
-        'trade_date',
+        # 'trade_date',
         'close',
         'turnover_rate',
         'turnover_rate_f',
@@ -217,25 +160,7 @@ STOCK_DAILY_INFO_META = {
         'total_mv',
         'circ_mv',
     ],
-    'dtype': [
-        ('trade_date', 'U8'),
-        ('close', 'f8'),
-        ('turnover_rate', 'f8'),
-        ('turnover_rate_f', 'f8'),
-        ('volume_ratio', 'f8'),
-        ('pe', 'f8'),
-        ('pe_ttm', 'f8'),
-        ('pb', 'f8'),
-        ('ps', 'f8'),
-        ('ps_ttm', 'f8'),
-        ('dv_ratio', 'f8'),
-        ('dv_ttm', 'f8'),
-        ('total_share', 'f8'),
-        ('float_share', 'f8'),
-        ('free_share', 'f8'),
-        ('total_mv', 'f8'),
-        ('circ_mv', 'f8'),
-    ]
+    'dtype': 'f8',
 }
 
 STOCK_SUSPEND_META = {
@@ -248,13 +173,6 @@ STOCK_SUSPEND_META = {
         'suspend_reason',
         'reason_type',
     ],
-    'dtype': [
-        ('suspend_date', 'U8'),
-        ('resume_date', 'U8'),
-        ('ann_date', 'U8'),
-        ('suspend_reason', 'U32'),
-        ('reason_type', 'U10'),
-    ]
 }
 
 SUSPEND_D_META = {
@@ -266,12 +184,6 @@ SUSPEND_D_META = {
         'suspend_timing',
         'suspend_type',
     ],
-    'dtype': [
-        ('ts_code', 'U10'),
-        ('trade_date', 'U8'),
-        ('suspend_timing', 'U16'),
-        ('suspend_type', 'U8'),
-    ]
 }
 
 STOCK_SUSPEND_D_META = {
@@ -282,11 +194,6 @@ STOCK_SUSPEND_D_META = {
         'suspend_timing',
         'suspend_type',
     ],
-    'dtype': [
-        ('trade_date', 'U8'),
-        ('suspend_timing', 'U16'),
-        ('suspend_type', 'U8'),
-    ]
 }
 
 ###################################################################
@@ -775,6 +682,5 @@ STOCK_FIN_INDICATOR_META = {
         'equity_yoy',
         'rd_exp',
         'update_flag',
-
     ]
 }
