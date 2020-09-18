@@ -140,7 +140,7 @@ class TestTusReader(unittest.TestCase):
         print(timeit.Timer(lambda: get_price_daily('002465.SZ', '20150101', '20200303')).timeit(10))
         print(timeit.Timer(lambda: get_price_daily('002465.SZ', '20150101', '20200303')).timeit(10))
 
-        print(timeit.Timer(lambda: get_price_minute('002465.SZ', '20190101', '20200303')).timeit(10))
+        # print(timeit.Timer(lambda: get_price_minute('002465.SZ', '20190101', '20200303')).timeit(10))
 
     def test_benchmark_all(self):
         # print(timeit.Timer(lambda: get_all_price_day_parallel()).timeit(1))

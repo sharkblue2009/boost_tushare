@@ -22,10 +22,7 @@ class XcReaderBasic(object):
     _trade_cal_day = None
     _trade_cal_1min = None
     _trade_cal_5min = None
-    _trade_cal_15min = None
-    _trade_cal_30min = None
-    _trade_cal_60min = None
-    _trade_cal_120min = None
+
 
     @property
     def trade_cal_raw(self):
@@ -45,6 +42,17 @@ class XcReaderBasic(object):
         self._trade_cal_5min = None
 
     @property
+    def trade_cal(self):
+        """
+        当前有效的交易日历
+        :return:
+        """
+        if self._trade_cal_day is None:
+            tcal = self.get_trade_cal()
+            self.trade_cal_raw = tcal
+        return self._trade_cal_day
+
+    @property
     def trade_cal_1min(self):
         if self._trade_cal_1min is None:
             self._trade_cal_1min = session_day_to_min_tus(self.trade_cal, '1min')
@@ -56,13 +64,7 @@ class XcReaderBasic(object):
             self._trade_cal_5min = session_day_to_min_tus(self.trade_cal, '5min')
         return self._trade_cal_5min
 
-    @property
-    def trade_cal(self):
-        """
-        当前有效的交易日历
-        :return:
-        """
-        return self._trade_cal_day
+
 
     @lazyval
     def index_info(self):
@@ -126,13 +128,10 @@ class XcReaderBasic(object):
         if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
             tcal = db.load(kk)
             if tcal is not None:
-                self.trade_cal_raw = tcal
                 return tcal
         if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_trade_cal()
             tcal = db.save(kk, info)
-
-            self.trade_cal_raw = tcal
             return tcal
         return
 

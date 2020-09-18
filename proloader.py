@@ -11,7 +11,7 @@ class XcNLBasic(object):
     pro_api = None
 
     def set_trade_cal(self):
-        info = self.pro_api.trade_cal_raw()
+        info = self.pro_api.trade_cal()
         info_to_db = info[info['is_open'] == 1].loc[:, 'cal_date']
         return info_to_db
 
@@ -163,6 +163,8 @@ class XcNLPrice(object):
     # @limits(30, period=120)
     def set_price_minute(self, code, start, end, freq='1min', astype='E'):
         """
+        Note: 停牌时，pro_bar对于分钟K线，仍然能取到数据，返回的OHLC是pre_close值， vol值为0.
+                但对于停牌时的日线， 则没有数据。
         :param code:
         :param start:
         :param end:

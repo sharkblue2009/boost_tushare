@@ -61,10 +61,11 @@ class XcReaderPrice(object):
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_price_daily(code, MONTH_START(dd), MONTH_END(dd), astype)
                 if ii is None:
-                    out[dtkey] = np.empty((len(dayindex[dd]), len(EQUITY_DAILY_PRICE_META['columns'])), dtype='f8')
-                ii = ii.set_index('trade_date', drop=True)
-                ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
-                ii = ii.reindex(dayindex[dd])
+                    ii = pd.DataFrame(index=dayindex[dd], columns=EQUITY_DAILY_PRICE_META['columns'], dtype='f8')
+                else:
+                    ii = ii.set_index('trade_date', drop=True)
+                    ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
+                    ii = ii.reindex(index=dayindex[dd])
                 out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
 
         out = list(out.values())
@@ -79,7 +80,9 @@ class XcReaderPrice(object):
                          flag=IOFLAG.READ_XC):
         """
         按日存取股票的分钟线数据
-        1. 如当日停牌无交易，则存入空数据
+        Note: 停牌时，pro_bar对于分钟K线，仍然能取到数据，返回的OHLC是pre_close值， vol值为0.
+        但对于停牌时的日线， 则没有数据。
+        1. 如当日停牌无交易，则存入空数据(tushare停牌时分钟数据返回ffill值，vol=0)
         2. 股票未上市，或已退市，则对应日键值不存在
         3. 当日有交易，则存储交易日的数据
         4. 如交易日键值不存在，但股票状态是正常上市，则该月数据需要下载
@@ -124,11 +127,11 @@ class XcReaderPrice(object):
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_price_minute(code, dd, dd, curfreq, astype)
                 if ii is None:
-                    out[dtkey] = np.empty((len(minindex[dd]), len(EQUITY_MINUTE_PRICE_META['columns'])), dtype='f8')
-                    continue
-                ii = ii.set_index('trade_time', drop=True)
-                ii.index = pd.to_datetime(ii.index, format=DATETIME_FORMAT)
-                ii = ii.reindex(minindex[dd])
+                    ii = pd.DataFrame(index=minindex[dd], columns=EQUITY_MINUTE_PRICE_META['columns'], dtype='f8')
+                else:
+                    ii = ii.set_index('trade_time', drop=True)
+                    ii.index = pd.to_datetime(ii.index, format=DATETIME_FORMAT)
+                    ii = ii.reindex(index=minindex[dd])
                 out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
 
         if merge_open:
@@ -196,10 +199,11 @@ class XcReaderPrice(object):
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_stock_daily_info(code, MONTH_START(dd), MONTH_END(dd))
                 if ii is None:
-                    out[dtkey] = np.empty((len(dayindex[dd]), len(STOCK_DAILY_INFO_META['columns'])), dtype='f8')
-                ii = ii.set_index('trade_date', drop=True)
-                ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
-                ii = ii.reindex(dayindex[dd])
+                    ii = pd.DataFrame(index=dayindex[dd], columns=STOCK_DAILY_INFO_META['columns'], dtype='f8')
+                else:
+                    ii = ii.set_index('trade_date', drop=True)
+                    ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
+                    ii = ii.reindex(index=dayindex[dd])
                 out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
 
         out = list(out.values())
@@ -241,10 +245,11 @@ class XcReaderPrice(object):
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_stock_adjfactor(code, MONTH_START(dd), MONTH_END(dd))
                 if ii is None:
-                    out[dtkey] = np.empty((len(dayindex[dd]), len(STOCK_ADJFACTOR_META['columns'])), dtype='f8')
-                ii = ii.set_index('trade_date', drop=True)
-                ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
-                ii = ii.reindex(dayindex[dd])
+                    ii = pd.DataFrame(index=dayindex[dd], columns=STOCK_ADJFACTOR_META['columns'], dtype='f8')
+                else:
+                    ii = ii.set_index('trade_date', drop=True)
+                    ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
+                    ii = ii.reindex(index=dayindex[dd])
                 out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
 
         out = list(out.values())
@@ -345,4 +350,3 @@ class XcReaderPrice(object):
             return info
         except:
             return None
-

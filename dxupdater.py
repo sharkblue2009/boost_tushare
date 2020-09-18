@@ -1,11 +1,8 @@
+from .apiwrapper import api_call
 from .proloader import TusNetLoader
-from .xcdb.xcdb import *
 from .schema import *
 from .utils.xcutils import *
-from .apiwrapper import api_call
-import numpy as np
-import pandas as pd
-import logbook
+from .xcdb.xcdb import *
 
 log = logbook.Logger('tupd')
 
@@ -80,11 +77,11 @@ class XcUpdaterPrice(object):
             if val is not None:
                 bvalid[n] = True
                 if n >= len(vdates) - rollback:
-                    bvalid[n] = integrity_check_km_vday(dd, val, self.trade_cal_index,
+                    bvalid[n] = integrity_check_km_vday(dd, val[:, 4], self.trade_cal_index,
                                                         self.stock_suspend(code), code)
             else:
                 bvalid[n] = False
-            #TODO: 数据缓存中最后一个数据，也应进行完整性检查。
+            # TODO: 数据缓存中最后一个数据，也应进行完整性检查。
 
         count = np.sum(~bvalid)
 
@@ -181,8 +178,7 @@ class XcUpdaterPrice(object):
             return 0
 
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
-        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
-                       STOCK_ADJFACTOR_META)
+        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code), STOCK_ADJFACTOR_META)
 
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
@@ -190,7 +186,7 @@ class XcUpdaterPrice(object):
             if val is not None:
                 bvalid[n] = True
                 if n >= len(vdates) - rollback:
-                    bvalid[n] = integrity_check_km_vday(dd, val, self.trade_cal_index,
+                    bvalid[n] = integrity_check_km_vday(dd, val[:, 0], self.trade_cal_index,
                                                         self.stock_suspend(code), code)
             else:
                 bvalid[n] = False
@@ -229,8 +225,7 @@ class XcUpdaterPrice(object):
         if len(vdates) == 0:
             return 0
 
-        db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
-                       STOCK_DAILY_INFO_META)
+        db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code), STOCK_DAILY_INFO_META)
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
 
         for n, dd in enumerate(vdates):
@@ -239,7 +234,7 @@ class XcUpdaterPrice(object):
             if val is not None:
                 bvalid[n] = True
                 if n >= len(vdates) - rollback:
-                    bvalid[n] = integrity_check_km_vday(dd, val, self.trade_cal_index,
+                    bvalid[n] = integrity_check_km_vday(dd, val[:, 0], self.trade_cal_index,
                                                         self.stock_suspend(code), code)
             else:
                 bvalid[n] = False
