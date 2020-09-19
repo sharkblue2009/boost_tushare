@@ -6,13 +6,13 @@ from .xcdb.xcdb import *
 
 class XcCheckerPrice(object):
     suspend_info = None
-    trade_cal_index: pd.DatetimeIndex = None
+    trade_cal: pd.DatetimeIndex = None
 
     @api_call
     def check_price_daily(self, code, start, end, astype, flag=IOFLAG.ERASE_INVALID):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal_index)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal)
         if len(vdates) == 0:
             return
 
@@ -26,7 +26,7 @@ class XcCheckerPrice(object):
             for n, dd in enumerate(vdates):
                 dtkey = dd.strftime(DATE_FORMAT)
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                bvalid = integrity_check_km_vday(dd, val[:, 4], self.trade_cal_index,
+                bvalid = integrity_check_km_vday(dd, val[:, 4], self.trade_cal,
                                                  self.stock_suspend(code))
                 if not bvalid:
                     db.remove(dtkey)
@@ -35,13 +35,13 @@ class XcCheckerPrice(object):
 
     @api_call
     def check_price_minute(self, code, start, end, freq='1min', astype=None, flag=IOFLAG.ERASE_INVALID):
-        if freq not in ['1min', '5min', '15min', '30min', '60min', '120m']:
+        if freq not in XTUS_FREQS:
             return None
 
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype),
-                                self.trade_cal_index)
+                                self.trade_cal)
         if len(vdates) == 0:
             return
 
@@ -57,7 +57,7 @@ class XcCheckerPrice(object):
                 dtkey = dd.strftime(DATE_FORMAT)
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
                 if val is not None:
-                    bvalid = integrity_check_kd_vmin(dd, val[:, 4], self.trade_cal_index,
+                    bvalid = integrity_check_kd_vmin(dd, val[:, 4], self.trade_cal,
                                                      self.stock_suspend(code), freq=freq, code=code)
                     if not bvalid:
                         db.remove(dtkey)
@@ -74,7 +74,7 @@ class XcCheckerPrice(object):
         """
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal)
         if len(vdates) == 0:
             return
 
@@ -89,7 +89,7 @@ class XcCheckerPrice(object):
                 dtkey = dd.strftime(DATE_FORMAT)
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
                 if val is not None:
-                    bvalid = integrity_check_km_vday(dd, val[:, 0], self.trade_cal_index,
+                    bvalid = integrity_check_km_vday(dd, val[:, 0], self.trade_cal,
                                                      self.stock_suspend(code), code)
                     if not bvalid:
                         db.remove(dtkey)
@@ -106,7 +106,7 @@ class XcCheckerPrice(object):
         """
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
+        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal)
         if len(vdates) == 0:
             return
 
@@ -120,7 +120,7 @@ class XcCheckerPrice(object):
                 dtkey = dd.strftime(DATE_FORMAT)
                 val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
                 if val is not None:
-                    bvalid = integrity_check_km_vday(dd, val[:, 0], self.trade_cal_index,
+                    bvalid = integrity_check_km_vday(dd, val[:, 0], self.trade_cal,
                                                      self.stock_suspend(code), code)
                     if not bvalid:
                         db.remove(dtkey)

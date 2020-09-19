@@ -15,7 +15,8 @@ class XcReaderBasic(object):
     Basic Information
     """
     master_db = None
-    xctus_last_date = None
+    xctus_current_day = None
+    xctus_first_date = pd.Timestamp('20000101')
     netloader: TusNetLoader = None
 
     _trade_cal_raw = None
@@ -28,7 +29,7 @@ class XcReaderBasic(object):
         if self._trade_cal_raw is None:
             self._trade_cal_raw = self.get_trade_cal()
             all_trade_cal = pd.to_datetime(self._trade_cal_raw.tolist(), format='%Y%m%d')
-            self._trade_cal_day = all_trade_cal[all_trade_cal < self.xctus_last_date]
+            self._trade_cal_day = all_trade_cal[self.xctus_first_date <= all_trade_cal <= self.xctus_current_day]
 
         return self._trade_cal_raw
 
@@ -36,7 +37,7 @@ class XcReaderBasic(object):
     def trade_cal_raw(self, value):
         self._trade_cal_raw = value
         all_trade_cal = pd.to_datetime(self._trade_cal_raw.tolist(), format='%Y%m%d')
-        self._trade_cal_day = all_trade_cal[all_trade_cal < self.xctus_last_date]
+        self._trade_cal_day = all_trade_cal[self.xctus_first_date <= all_trade_cal <= self.xctus_current_day]
         self._trade_cal_1min = None
         self._trade_cal_5min = None
 
@@ -136,7 +137,7 @@ class XcReaderBasic(object):
     def get_trade_cal_index(self, flag=IOFLAG.READ_XC):
         trade_cal = self.get_trade_cal(flag)
         all_trade_cal = pd.to_datetime(trade_cal.tolist(), format='%Y%m%d')
-        valid_trade_cal = all_trade_cal[all_trade_cal < self.xctus_last_date]
+        valid_trade_cal = all_trade_cal[all_trade_cal < self.xctus_current_day]
         return valid_trade_cal
 
     @api_call

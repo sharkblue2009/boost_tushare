@@ -2,10 +2,13 @@
 Utils
 """
 import logbook
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 log = logbook.Logger('bstutl')
+
+XTUS_FREQS = ['1min', '5min', '15min', '30min', '60min']
+XTUS_FREQ_BARS = {'1min': 241, '5min': 49, '15min': 17, '30min': 9, '60min': 5}
 
 
 def nadata_iter(ar_flags, max_length):
@@ -284,7 +287,7 @@ def session_day_to_min_tus(day_sess, freq='1min', market_open=True):
 FORMAT = lambda x: '%.4f' % x
 
 
-def price1m_resample(data1m, periods=5, market_open=True):
+def price1m_resample(data1m, freq='5min', market_open=True):
     """
     convert 1 minute data to other frequency
     :param data1m:
@@ -292,8 +295,8 @@ def price1m_resample(data1m, periods=5, market_open=True):
     :param market_open: if has market_open(9:30) data
     :return:
     """
-    if periods not in [1, 5, 15, 30, 60, 120]:
-        raise KeyError
+    cc = {'1min': 1, '5min': 5, '15min': 15, '30min': 30, '60min': 60}
+    periods = cc[freq]
     if periods == 1:
         return data1m
 
@@ -372,8 +375,7 @@ def integrity_check_kd_vmin(dt, dtval, trade_days, susp_info=None, freq='1min', 
     if dtval is None:
         return False
 
-    cc = {'1min': 241, '5min': 49, '15min': 17, '30min': 9, '60min': 5, '120min': 3}
-    nbars = cc[freq]
+    nbars = XTUS_FREQ_BARS[freq]
 
     b_vld = False
     if dt in trade_days:

@@ -46,7 +46,6 @@ class XcReaderPrice(object):
         vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal)
         if len(vdates) == 0:
             return None
-
         dayindex, alldays = gen_dayindex_monthly(vdates, self.trade_cal)
 
         db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
@@ -76,7 +75,7 @@ class XcReaderPrice(object):
         return all_out
 
     @api_call
-    def get_price_minute(self, code, start, end, freq='1min', astype='E', merge_open=True, resample=False,
+    def get_price_minute(self, code, start, end, freq='5min', astype='E', merge_open=True, resample=False,
                          flag=IOFLAG.READ_XC):
         """
         按日存取股票的分钟线数据
@@ -98,9 +97,10 @@ class XcReaderPrice(object):
         :param astype: asset type. 'E' for stock, 'I' for index, 'FD' for fund.
         :param merge_open: True, merge first 9:30 Kbar to follow KBar.
         :param resample: if use 1Min data resample to others
+        :param flag:
         :return:
         """
-        if freq not in ['1min', '5min', '15min', '30min', '60min', '120m']:
+        if freq not in XTUS_FREQS:
             return None
 
         if resample:
@@ -113,7 +113,8 @@ class XcReaderPrice(object):
         vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal)
         if len(vdates) == 0:
             return None
-        minindex, allmins = gen_minindex_daily(vdates, self.trade_cal_5min)
+        cc = {'1min': self.trade_cal_1min, '5min': self.trade_cal_5min, '15min': None, '30min': None, '60min': None}
+        minindex, allmins = gen_minindex_daily(vdates, cc[freq])
 
         db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + curfreq), EQUITY_MINUTE_PRICE_META)
         out = {}
@@ -144,13 +145,17 @@ class XcReaderPrice(object):
                 tmpout1[k] = v
                 if v is not None:
                     if v.shape[0] > 2:
-                        v[1, 1] = v[0, 1]  # Open
-                        v[1, 2] = np.max(v[:2, 2])  # High
-                        v[1, 3] = np.min(v[:2, 3])  # low
-                        v[1, 5] = np.sum(v[:2, 5])  # volume
-                        v[1, 6] = np.sum(v[:2, 6])  # amount
+                        v[1, 0] = v[0, 0]  # Open
+                        v[1, 1] = np.max(v[:2, 1])  # High
+                        v[1, 2] = np.min(v[:2, 2])  # low
+                        v[1, 4] = np.sum(v[:2, 4])  # volume
+                        v[1, 5] = np.sum(v[:2, 5])  # amount
                         tmpout1[k] = v[1:, :]
             out = tmpout1
+
+            periods = XTUS_FREQ_BARS[freq]
+            mask = (np.arange(len(allmins)) % periods) != 0
+            allmins = allmins[mask]
 
         out = list(out.values())
         out = np.concatenate(out)
@@ -158,7 +163,6 @@ class XcReaderPrice(object):
         all_out = all_out.set_index(allmins)
 
         if resample:
-            cc = {'1min': 1, '5min': 5, '15min': 15, '30min': 30, '60min': 60, '120min': 120}
             periods = cc[freq]
             all_out = price1m_resample(all_out, periods, market_open=True)
 
