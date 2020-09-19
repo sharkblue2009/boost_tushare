@@ -53,7 +53,7 @@ class XcReaderPrice(object):
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     out[dtkey] = val
                     continue
@@ -65,7 +65,7 @@ class XcReaderPrice(object):
                     ii = ii.set_index('trade_date', drop=True)
                     ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
                     ii = ii.reindex(index=dayindex[dd])
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
+                out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
         out = list(out.values())
         out = np.vstack(out)
@@ -113,7 +113,7 @@ class XcReaderPrice(object):
         vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal)
         if len(vdates) == 0:
             return None
-        cc = {'1min': self.trade_cal_1min, '5min': self.trade_cal_5min, '15min': None, '30min': None, '60min': None}
+        cc = {'1min': self.trade_cal_5min, '5min': self.trade_cal_5min, '15min': None, '30min': None, '60min': None}
         minindex, allmins = gen_minindex_daily(vdates, cc[freq])
 
         db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + curfreq), EQUITY_MINUTE_PRICE_META)
@@ -121,7 +121,7 @@ class XcReaderPrice(object):
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     out[dtkey] = val
                     continue
@@ -136,7 +136,7 @@ class XcReaderPrice(object):
                     if (ii.volume == 0.0).all():
                         # 如果全天无交易，vol == 0, 则清空df.
                         ii.loc[:, :] = np.nan
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
+                out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
         if merge_open:
             # Handle the first row of every day. (the Kbar at 9:30)
@@ -199,7 +199,7 @@ class XcReaderPrice(object):
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     out[dtkey] = val
                     continue
@@ -211,7 +211,7 @@ class XcReaderPrice(object):
                     ii = ii.set_index('trade_date', drop=True)
                     ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
                     ii = ii.reindex(index=dayindex[dd])
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
+                out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
         out = list(out.values())
         out = np.concatenate(out)
@@ -245,7 +245,7 @@ class XcReaderPrice(object):
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     out[dtkey] = val
                     continue
@@ -257,7 +257,7 @@ class XcReaderPrice(object):
                     ii = ii.set_index('trade_date', drop=True)
                     ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
                     ii = ii.reindex(index=dayindex[dd])
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
+                out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
         out = list(out.values())
         out = np.concatenate(out)
@@ -326,13 +326,13 @@ class XcReaderPrice(object):
         for dd in vdates:
             dtkey = dd.strftime(DATE_FORMAT)
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     out[dtkey] = val
                     continue
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_suspend_d(dd)
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
+                out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
         out = list(out.values())
         out = np.vstack(out)

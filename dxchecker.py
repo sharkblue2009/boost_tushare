@@ -25,7 +25,7 @@ class XcCheckerPrice(object):
         elif flag == IOFLAG.ERASE_INVALID:
             for n, dd in enumerate(vdates):
                 dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+                val = db.load(dtkey, raw_mode=True)
                 bvalid = integrity_check_km_vday(dd, val[:, 4], self.trade_cal,
                                                  self.stock_suspend(code))
                 if not bvalid:
@@ -55,7 +55,7 @@ class XcCheckerPrice(object):
         else:
             for n, dd in enumerate(vdates):
                 dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     bvalid = integrity_check_kd_vmin(dd, val[:, 4], self.trade_cal,
                                                      self.stock_suspend(code), freq=freq, code=code)
@@ -87,7 +87,7 @@ class XcCheckerPrice(object):
         else:
             for n, dd in enumerate(vdates):
                 dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     bvalid = integrity_check_km_vday(dd, val[:, 0], self.trade_cal,
                                                      self.stock_suspend(code), code)
@@ -118,7 +118,7 @@ class XcCheckerPrice(object):
         else:
             for n, dd in enumerate(vdates):
                 dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     bvalid = integrity_check_km_vday(dd, val[:, 0], self.trade_cal,
                                                      self.stock_suspend(code), code)

@@ -14,7 +14,7 @@ class XcReaderBasic(object):
     """
     Basic Information
     """
-    master_db = None
+    facc = None
     xctus_current_day = None
     xctus_first_date = pd.Timestamp('20000101')
     netloader: TusNetLoader = None
@@ -27,17 +27,14 @@ class XcReaderBasic(object):
     @property
     def trade_cal_raw(self):
         if self._trade_cal_raw is None:
-            self._trade_cal_raw = self.get_trade_cal()
-            all_trade_cal = pd.to_datetime(self._trade_cal_raw.tolist(), format='%Y%m%d')
-            self._trade_cal_day = all_trade_cal[self.xctus_first_date <= all_trade_cal <= self.xctus_current_day]
-
+            db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_RAW_META)
+            self._trade_cal_raw = db.load(TusKeys.CAL_RAW.value)
         return self._trade_cal_raw
 
     @trade_cal_raw.setter
     def trade_cal_raw(self, value):
-        self._trade_cal_raw = value
-        all_trade_cal = pd.to_datetime(self._trade_cal_raw.tolist(), format='%Y%m%d')
-        self._trade_cal_day = all_trade_cal[self.xctus_first_date <= all_trade_cal <= self.xctus_current_day]
+        self._trade_cal_raw = None
+        self._trade_cal_day = None
         self._trade_cal_1min = None
         self._trade_cal_5min = None
 
@@ -48,20 +45,23 @@ class XcReaderBasic(object):
         :return:
         """
         if self._trade_cal_day is None:
-            tcal = self.get_trade_cal()
-            self.trade_cal_raw = tcal
+            db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_IDX_META)
+            self._trade_cal_day = db.load(TusKeys.CAL_INDEX_DAY.value)
+
         return self._trade_cal_day
 
     @property
     def trade_cal_1min(self):
         if self._trade_cal_1min is None:
-            self._trade_cal_1min = session_day_to_min_tus(self.trade_cal, '1min')
+            db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_IDX_META)
+            self._trade_cal_1min = db.load(TusKeys.CAL_INDEX_1MIN.value)
         return self._trade_cal_1min
 
     @property
     def trade_cal_5min(self):
         if self._trade_cal_5min is None:
-            self._trade_cal_5min = session_day_to_min_tus(self.trade_cal, '5min')
+            db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_IDX_META)
+            self._trade_cal_5min = db.load(TusKeys.CAL_INDEX_5MIN.value)
         return self._trade_cal_5min
 
     @lazyval
@@ -119,23 +119,46 @@ class XcReaderBasic(object):
     # Reader API
     ##########################################################
     @api_call
-    def get_trade_cal(self, flag=IOFLAG.READ_XC):
-        db = self.facc(TusSdbs.SDB_TRADE_CALENDAR.value, TRD_CAL_META)
+    def get_trade_cal(self):
 
-        kk = 'trade_cal'
-        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
-            tcal = db.load(kk)
-            if tcal is not None:
-                return tcal
-        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
+        db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
+
+        b_need_update = True
+        first_date = db.load(TusKeys.CAL_FIRST_DATE.value)
+        current_date = db.load(TusKeys.CAL_CURRENT_DATE.value)
+
+        if first_date is not None and current_date is not None:
+            if first_date == self.xctus_first_date and current_date == self.xctus_current_day:
+                b_need_update = False
+
+        if b_need_update:
+            print('Update calendar:{}, {}'.format(first_date, current_date))
+
             info = self.netloader.set_trade_cal()
-            tcal = db.save(kk, info)
+            db.metadata = CALENDAR_RAW_META
+            tcal = db.save(TusKeys.CAL_RAW.value, info)
+
+            tcal_day = pd.to_datetime(tcal.tolist(), format='%Y%m%d')
+            tcal_day = tcal_day[(self.xctus_first_date <= tcal_day) & (tcal_day <= self.xctus_current_day)]
+            _tcal_1min = session_day_to_min_tus(tcal_day, '1min')
+            _tcal_5min = session_day_to_min_tus(tcal_day, '5min')
+
+            db.metadata = CALENDAR_IDX_META
+            db.save(TusKeys.CAL_INDEX_DAY.value, tcal_day)
+            db.save(TusKeys.CAL_INDEX_1MIN.value, _tcal_1min)
+            db.save(TusKeys.CAL_INDEX_5MIN.value, _tcal_5min)
+
+            db.metadata = GENERAL_OBJ_META
+            db.save(TusKeys.CAL_FIRST_DATE.value, self.xctus_first_date)
+            db.save(TusKeys.CAL_CURRENT_DATE.value, self.xctus_current_day)
+            self.trade_cal_raw = None
             return tcal
+
         return
 
     @api_call
     def get_trade_cal_index(self, flag=IOFLAG.READ_XC):
-        trade_cal = self.get_trade_cal(flag)
+        trade_cal = self.get_trade_cal()
         all_trade_cal = pd.to_datetime(trade_cal.tolist(), format='%Y%m%d')
         valid_trade_cal = all_trade_cal[all_trade_cal < self.xctus_current_day]
         return valid_trade_cal

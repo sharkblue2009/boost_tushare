@@ -36,7 +36,7 @@ class XcUpdaterPrice(object):
 
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
-            val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+            val = db.load(dtkey, raw_mode=True)
             if val is not None:
                 bvalid[n] = True  # update missed month data.
             else:
@@ -72,7 +72,7 @@ class XcUpdaterPrice(object):
 
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
-            val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+            val = db.load(dtkey, raw_mode=True)
             if val is not None:
                 bvalid[n] = True
                 if n >= len(vdates) - rollback:
@@ -124,7 +124,7 @@ class XcUpdaterPrice(object):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal)
-        cc = {'1min': self.trade_cal_1min, '5min': self.trade_cal_5min, '15min': None, '30min': None, '60min': None}
+        cc = {'1min': self.trade_cal_5min, '5min': self.trade_cal_5min, '15min': None, '30min': None, '60min': None}
         minindex, allmins = gen_minindex_daily(vdates, cc[freq])
 
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
@@ -132,7 +132,7 @@ class XcUpdaterPrice(object):
 
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
-            val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+            val = db.load(dtkey, raw_mode=True)
             if val is not None:
                 bvalid[n] = True
                 if n >= len(vdates) - rollback:
@@ -191,7 +191,7 @@ class XcUpdaterPrice(object):
 
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
-            val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+            val = db.load(dtkey, raw_mode=True)
             if val is not None:
                 bvalid[n] = True
                 if n >= len(vdates) - rollback:
@@ -243,7 +243,7 @@ class XcUpdaterPrice(object):
 
         for n, dd in enumerate(vdates):
             dtkey = dd.strftime(DATE_FORMAT)
-            val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+            val = db.load(dtkey, raw_mode=True)
             if val is not None:
                 bvalid[n] = True
                 if n >= len(vdates) - rollback:

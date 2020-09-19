@@ -11,6 +11,12 @@ class TusKeys(Enum):
     INDEX_INFO = 'IndexInfo'
     STOCK_INFO = 'StockInfo'
     FUND_INFO = 'FundInfo'
+    CAL_FIRST_DATE = 'first_date'
+    CAL_CURRENT_DATE = 'current_date'
+    CAL_RAW = 'trade_cal_raw'
+    CAL_INDEX_DAY = 'trade_cal'
+    CAL_INDEX_1MIN = 'trade_cal_1min'
+    CAL_INDEX_5MIN = 'trade_cal_5min'
 
 
 class TusSdbs(Enum):
@@ -18,7 +24,7 @@ class TusSdbs(Enum):
     # Sub-Database paths.
     """
     # SDB_DTYPES = 'ts:dtypes'
-    SDB_TRADE_CALENDAR = 'ts'
+    SDB_CALENDAR = 'ts:calendar:'
     SDB_ASSET_INFO = 'ts:asset_info'
     # SDB_EQUITY_CALENDAR = 'ts:equity_calendar'
     SDB_STOCK_XDXR = 'ts:stock_xdxr'
@@ -27,7 +33,7 @@ class TusSdbs(Enum):
     SDB_INDEX_WEIGHT = 'ts:index_weight:'
     SDB_INDEX_CLASSIFY = 'ts:index_classify'
     SDB_INDEX_MEMBER = 'ts:index_member'
-    SDB_SUSPEND_D = 'ts:ssuspend_d:'
+    SDB_SUSPEND_D = 'ts:suspend_d:'
     SDB_STOCK_DAILY_INFO = 'ts:stock_daily_info:'
     SDB_STOCK_SUSPEND = 'ts:stock_suspend'
     SDB_STOCK_FIN_INCOME = 'ts:stock_finance:income:'
@@ -38,11 +44,23 @@ class TusSdbs(Enum):
     SDB_STOCK_ADJFACTOR = 'ts:stock_adj_factor:'
 
 
+
 ##############################################################
-TRD_CAL_META = {
+GENERAL_OBJ_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_OBJECT,
+}
+
+CALENDAR_RAW_META = {
     'tpk': KVTYPE.TPK_RAW,
     'tpv': KVTYPE.TPV_SERIES,
     'dtype': 'U8',
+}
+
+CALENDAR_IDX_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_INDEX,
+    'dtype': 'M8[m]',
 }
 
 ASSET_INFO_META = {

@@ -11,6 +11,7 @@ from .utils.memoize import lazyval
 from .proloader import netloader_init, TusNetLoader
 # from .xcdb.zleveldb import *
 from .xcdb.zlmdb import *
+from functools import partial
 
 
 class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice, XcCheckerPrice):
@@ -22,9 +23,9 @@ class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice
     def netloader(self) -> TusNetLoader:
         return netloader_init()
 
-    def __init__(self, xctus_last_date=None, xctus_lmdb=True):
+    def __init__(self, xctus_current_day=None, xctus_lmdb=True):
         """
-        :param xctus_last_date: Tushare last date with data available,
+        :param xctus_current_day: Tushare last date with data available,
                             we assume yesterday's data is available in today.
         """
         if xctus_lmdb:
@@ -40,15 +41,15 @@ class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice
             # self.facc = partial(XcLevelDBAccessor, self.master_db)
             pass
 
-        if xctus_last_date is None:
+        if xctus_current_day is None:
             """
             Last date always point to the end of Today. but tushare data may not exist at this time.
             """
-            self.xctus_last_date = pd.Timestamp.today().normalize() + pd.Timedelta(days=1)
+            self.xctus_current_day = pd.Timestamp.today().normalize() + pd.Timedelta(days=1)
         else:
-            self.xctus_last_date = xctus_last_date
+            self.xctus_current_day = xctus_current_day
 
-        print('TuBooster: last trade date:{}'.format(self.xctus_last_date))
+        print('TuBooster: last trade date:{}'.format(self.xctus_current_day))
 
         super(XcTusBooster, self).__init__()
 

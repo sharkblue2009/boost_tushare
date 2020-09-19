@@ -32,7 +32,7 @@ def cntus_update_basic():
     """
     log.info('Download basic information...(Trading Calendar, Asset info)')
     tusbooster_init()
-    get_trade_cal(IOFLAG.READ_NETDB)
+    get_trade_cal()
 
     get_index_info(IOFLAG.READ_NETDB)
     get_stock_info(IOFLAG.READ_NETDB)
@@ -42,7 +42,7 @@ def cntus_update_basic():
     log.info('Finished')
 
     booster = tusbooster_init()
-    XcTusBooster.get_trade_cal(IOFLAG.READ_NETDB)
+    XcTusBooster.get_trade_cal()
 
     start_date = '20100101'
     end_date = pd.Timestamp.today().strftime('%Y%m%d')

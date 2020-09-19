@@ -1,11 +1,3 @@
-import copy
-from logbook import Logger
-import pickle
-from functools import partial
-from enum import IntEnum
-
-import pandas as pd
-import numpy as np
 import lmdb
 
 from .xcdb import *
@@ -76,6 +68,12 @@ class XcLMDBAccessor(XcAccessor):
     Note: read-write transactions may be nested.
         write transition begin-commit block can not insert other transition without nesting.
 
+    Lmdb Txn begin and commit need to be paired. so every API called Accessor [Init] must call [DEL] before next [Init].
+
+    db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
+    ...
+    ...
+    del db
     """
     metadata = {}
 
@@ -95,11 +93,11 @@ class XcLMDBAccessor(XcAccessor):
         except:
             pass
 
-    def load(self, key, vtype=None):
+    def load(self, key, raw_mode=False):
         """
 
         :param key:
-        :param vtype: override value type for output.
+        :param raw_mode: override value type for output.
         :return:
         """
         # self.txn = self.master.env.begin(db=self.db, write=True)
@@ -107,16 +105,16 @@ class XcLMDBAccessor(XcAccessor):
         if key:
             val = self.txn.get(key)
             if val:
-                return self.to_val_out(val, vtype)
+                return self.to_val_out(val, raw_mode)
         return None
 
-    def save(self, key, val, vtype=None):
+    def save(self, key, val, raw_mode=False):
         """"""
         # self.txn = self.master.env.begin(db=self.db, write=True)
         if val is None:
             return
         key = self.to_db_key(key)
-        dbval, appval = self.to_val_in(val, vtype)
+        dbval, appval = self.to_val_in(val, raw_mode)
         if key and dbval:
             self.txn.put(key, dbval)
         return appval
@@ -130,7 +128,7 @@ class XcLMDBAccessor(XcAccessor):
     def commit(self):
         self.txn.commit()
 
-    def load_range(self, kstart, kend, vtype):
+    def load_range(self, kstart, kend, raw_mode):
         """"""
         out = {}
         with self.txn.cursor(self.db) as cur:
@@ -139,7 +137,7 @@ class XcLMDBAccessor(XcAccessor):
                 while True:
                     k, v = cur.item()
                     sk = force_string(k)
-                    out[sk] = self.to_val_out(v, vtype)
+                    out[sk] = self.to_val_out(v, raw_mode)
                     if sk >= kend:
                         break
                     vld = cur.next()

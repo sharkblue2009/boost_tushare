@@ -69,12 +69,12 @@ class XCacheDB(object):
 class KVTYPE(IntEnum):
     TPK_RAW = 1  # Raw key, o order
     TPK_DATE = 2  # Datatime,
-    TPK_INT_ID = 4  # integer sequence
+    TPK_INTS = 4  # integer sequence
 
     TPV_DFRAME = 11  # metadata colume names
     TPV_SERIES = 13  #
-    TPV_NARR_1D = 14
-    TPV_NARR_2D = 15
+    TPV_INDEX = 14
+    TPV_OBJECT = 16  # object
 
 
 class IOFLAG(IntEnum):
@@ -122,7 +122,7 @@ class XcAccessor(object):
                 real_key = force_bytes(key.strftime('%Y%m%d'))
             else:
                 real_key = force_bytes(key)
-        elif self.tpkey == KVTYPE.TPK_INT_ID:
+        elif self.tpkey == KVTYPE.TPK_INTS:
             if isinstance(key, int):
                 real_key = force_bytes(str(key))
             else:
@@ -132,14 +132,15 @@ class XcAccessor(object):
 
         return real_key
 
-    def to_val_in(self, val, vtype):
+    def to_val_in(self, val, raw_mode=False):
         """
         format val which need to database.
         :param val: value to be save
+        :param raw_mode: if to use ndarray instead of pandas objects(DF, Ser, Index) as app_val for output
         :return: data to DB, data to APP.
         """
         if self.tpval == KVTYPE.TPV_DFRAME:
-            if vtype is None:
+            if not raw_mode:
                 if isinstance(val, pd.DataFrame):
                     if val.empty:
                         return NOT_EXIST, pd.DataFrame(columns=self.metadata['columns'])
@@ -150,7 +151,7 @@ class XcAccessor(object):
                     return pickle.dumps(dbval), val
                 else:
                     return None, pd.DataFrame(columns=self.metadata['columns'])
-            elif vtype == KVTYPE.TPV_NARR_2D:
+            else:
                 if isinstance(val, pd.DataFrame):
                     if val.empty:
                         return NOT_EXIST, np.empty((0, len(self.metadata['columns'])))
@@ -162,92 +163,76 @@ class XcAccessor(object):
                 else:
                     return None, pd.DataFrame(columns=self.metadata['columns'])
         elif self.tpval == KVTYPE.TPV_SERIES:
-            if 'columns' in self.metadata.keys():
-                if isinstance(val, pd.Series):
-                    if val.empty:
-                        return NOT_EXIST, pd.Series(index=self.metadata['columns'])
-                    val = val.reindex(index=self.metadata['columns'])
-                    dbval = val.values
-                    if 'dtype' in self.metadata.keys():
-                        dbval = dbval.astype(self.metadata['dtype'])
-                    return pickle.dumps(dbval), val
-            else:
-                if isinstance(val, pd.Series):
-                    if val.empty:
-                        return NOT_EXIST, pd.Series()
-                    dbval = val.values
-                    if 'dtype' in self.metadata.keys():
-                        dbval = dbval.astype(self.metadata['dtype'])
-                    return pickle.dumps(dbval), val
-        # elif self.tpval == KVTYPE.TPV_NARR_2D:
-        #     if isinstance(val, np.ndarray):
-        #         if val.size == 0:
-        #             return NOT_EXIST, val
-        #         return pickle.dumps(val), val
+            if isinstance(val, pd.Series):
+                if val.empty:
+                    return NOT_EXIST, val
+                dbval = val.values
+                if 'dtype' in self.metadata.keys():
+                    dbval = dbval.astype(self.metadata['dtype'])
+                return pickle.dumps(dbval), val
+        elif self.tpval == KVTYPE.TPV_INDEX:
+            if isinstance(val, pd.Index):
+                val = val.values
+            if isinstance(val, np.ndarray):
+                if val.size == 0:
+                    return NOT_EXIST, val
+                return pickle.dumps(val), val
+        elif self.tpval == KVTYPE.TPV_OBJECT:
+            return pickle.dumps(val), val
         else:
             return force_bytes(val), val
 
         return None, None
 
-    def to_val_out(self, val, vtype):
+    def to_val_out(self, val, raw_mode=False):
         """
 
         :param val:
-        :param vtype:
+        :param raw_mode: if use ndarray as app_val for output
         :return:
         """
-        realval = None
+        realval = val
         if self.tpval == KVTYPE.TPV_DFRAME:
             cols = self.metadata['columns']
-            if vtype is None:
+            if not raw_mode:
                 if val == NOT_EXIST:
                     realval = pd.DataFrame(columns=cols)
                 else:
                     dbval = pickle.loads(val)
                     realval = pd.DataFrame(data=dbval, columns=cols)
-            elif vtype == KVTYPE.TPV_NARR_2D:
+            else:
                 if val == NOT_EXIST:
                     realval = np.empty((0, len(cols)))
                 else:
                     dbval = pickle.loads(val)
                     realval = dbval
         elif self.tpval == KVTYPE.TPV_SERIES:
-            if 'columns' in self.metadata.keys():
-                cols = self.metadata['columns']
-                if val == NOT_EXIST:
-                    realval = pd.Series(index=cols)
-                else:
-                    dbval = pickle.loads(val)
-                    realval = pd.Series(data=dbval, index=cols)
+            if val == NOT_EXIST:
+                realval = pd.Series()
             else:
-                if val == NOT_EXIST:
-                    realval = pd.Series()
-                else:
-                    dbval = pickle.loads(val)
-                    realval = pd.Series(data=dbval)
-        # elif self.tpval == KVTYPE.TPV_NARR_2D:
-        #     cols = self.metadata['columns']
-        #     if val == NOT_EXIST:
-        #         realval = np.empty((0, len(cols)))
-        #     else:
-        #         val = pickle.loads(val)
-        #         realval = val
-        else:
-            realval = val
+                dbval = pickle.loads(val)
+                realval = pd.Series(data=dbval)
+        elif self.tpval == KVTYPE.TPV_INDEX:
+            if val == NOT_EXIST:
+                realval = np.empty((0,))
+            else:
+                realval = pickle.loads(val)
+        elif self.tpval == KVTYPE.TPV_OBJECT:
+            realval = pickle.loads(val)
 
         return realval
 
     @abstractmethod
-    def load(self, key, vtype=None):
+    def load(self, key, raw_mode=False):
         """
 
         :param key:
-        :param vtype: override value type for output.
+        :param raw_mode: override value type for output.
         :return:
         """
 
     @abstractmethod
-    def save(self, key, val, vtype=None):
+    def save(self, key, val, raw_mode=None):
         """"""
 
     @abstractmethod
@@ -259,5 +244,5 @@ class XcAccessor(object):
         """"""
 
     @abstractmethod
-    def load_range(self, kstart, kend, vtype):
+    def load_range(self, kstart, kend, raw_mode):
         """"""

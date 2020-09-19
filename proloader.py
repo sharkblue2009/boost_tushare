@@ -305,7 +305,7 @@ class TusNetLoader(XcNLBasic, XcNLFinance, XcNLPrice):
 
     def __init__(self):
         """
-        :param xctus_last_date: Tushare last date with data available,
+        :param xctus_current_day: Tushare last date with data available,
                             we assume yesterday's data is available in today.
         """
         # self.calendar = get_calendar('XSHG')
