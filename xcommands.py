@@ -30,9 +30,9 @@ def cntus_update_basic():
     :param b_index_min:
     :return:
     """
-    log.info('Download basic information...(Trading Calendar, Asset info)')
+    log.info('Update basic information...(Trading Calendar, Asset info)')
     tusbooster_init()
-    get_trade_cal()
+    tusbooster_lookup_calendar()
 
     get_index_info(IOFLAG.READ_NETDB)
     get_stock_info(IOFLAG.READ_NETDB)
@@ -40,9 +40,6 @@ def cntus_update_basic():
     get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
     get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
     log.info('Finished')
-
-    booster = tusbooster_init()
-    XcTusBooster.get_trade_cal()
 
     start_date = '20100101'
     end_date = pd.Timestamp.today().strftime('%Y%m%d')

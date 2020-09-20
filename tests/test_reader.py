@@ -39,8 +39,8 @@ class TestTusReader(unittest.TestCase):
         print(df.iloc[-10:])
         df = get_fund_info()
         print(df.iloc[-10:])
-        df = get_trade_cal()
-        print(df.iloc[-10:])
+        df = self.reader.trade_cal
+        print(df[-10:])
 
     def test_index_weight(self):
         code = '399300.SZ'
@@ -144,8 +144,8 @@ class TestTusReader(unittest.TestCase):
 
     def test_benchmark_all(self):
         # print(timeit.Timer(lambda: get_all_price_day_parallel()).timeit(1))
-        # print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
-        #
+        print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
+
         # print(timeit.Timer(lambda: get_all_dayinfo()).timeit(1))
 
         # print(timeit.Timer(lambda: get_all_price_min('20190501', '20200301')).timeit(1))

@@ -64,6 +64,12 @@ class XcReaderBasic(object):
             self._trade_cal_5min = db.load(TusKeys.CAL_INDEX_5MIN.value)
         return self._trade_cal_5min
 
+    def freq_to_cal(self, freq):
+        if freq == '1min':
+            return self.trade_cal_1min
+        if freq == '5min':
+            return self.trade_cal_5min
+
     @lazyval
     def index_info(self):
         info = self.get_index_info()
@@ -109,6 +115,8 @@ class XcReaderBasic(object):
             info = self.index_info
         elif astype == 'FD':
             info = self.fund_info
+        else:
+            return
 
         start_date = info.loc[code, 'start_date']
         end_date = info.loc[code, 'end_date']
@@ -119,7 +127,7 @@ class XcReaderBasic(object):
     # Reader API
     ##########################################################
     @api_call
-    def get_trade_cal(self):
+    def tusbooster_lookup_calendar(self):
 
         db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
 
@@ -156,12 +164,12 @@ class XcReaderBasic(object):
 
         return
 
-    @api_call
-    def get_trade_cal_index(self, flag=IOFLAG.READ_XC):
-        trade_cal = self.get_trade_cal()
-        all_trade_cal = pd.to_datetime(trade_cal.tolist(), format='%Y%m%d')
-        valid_trade_cal = all_trade_cal[all_trade_cal < self.xctus_current_day]
-        return valid_trade_cal
+    # @api_call
+    # def get_trade_cal_index(self, flag=IOFLAG.READ_XC):
+    #     trade_cal = self.lookup_trade_cal()
+    #     all_trade_cal = pd.to_datetime(trade_cal.tolist(), format='%Y%m%d')
+    #     valid_trade_cal = all_trade_cal[all_trade_cal < self.xctus_current_day]
+    #     return valid_trade_cal
 
     @api_call
     def get_index_info(self, flag=IOFLAG.READ_XC):

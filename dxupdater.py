@@ -124,8 +124,8 @@ class XcUpdaterPrice(object):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal)
-        cc = {'1min': self.trade_cal_5min, '5min': self.trade_cal_5min, '15min': None, '30min': None, '60min': None}
-        minindex, allmins = gen_minindex_daily(vdates, cc[freq])
+        tcal = self.freq_to_cal(freq)
+        minindex, allmins = gen_minindex_daily(vdates, tcal)
 
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
         db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq), EQUITY_MINUTE_PRICE_META)

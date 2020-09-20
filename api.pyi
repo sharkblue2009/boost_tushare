@@ -1,14 +1,13 @@
 from .xcdb.xcdb import *
 
 
-def get_trade_cal(flag=IOFLAG.READ_XC):
+def tusbooster_lookup_calendar():
     """
-    :param flag:
     :return:
     """
 
-def get_trade_cal_index(self, flag=IOFLAG.READ_XC):
-    """"""
+# def get_trade_cal_index(self, flag=IOFLAG.READ_XC):
+#     """"""
 
 def get_index_info(flag=IOFLAG.READ_XC):
     """
