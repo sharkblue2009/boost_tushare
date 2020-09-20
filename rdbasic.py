@@ -16,7 +16,7 @@ class XcReaderBasic(object):
     """
     facc = None
     xctus_current_day = None
-    xctus_first_date = pd.Timestamp('20000101')
+    xctus_first_date = pd.Timestamp('20080101')
     netloader: TusNetLoader = None
 
     _trade_cal_raw = None
@@ -140,8 +140,8 @@ class XcReaderBasic(object):
 
             tcal_day = pd.to_datetime(tcal.tolist(), format='%Y%m%d')
             tcal_day = tcal_day[(self.xctus_first_date <= tcal_day) & (tcal_day <= self.xctus_current_day)]
-            _tcal_1min = session_day_to_min_tus(tcal_day, '1min')
-            _tcal_5min = session_day_to_min_tus(tcal_day, '5min')
+            _tcal_1min = session_day_to_min_tus(tcal_day, '1min', market_open=False)
+            _tcal_5min = session_day_to_min_tus(tcal_day, '5min', market_open=False)
 
             db.metadata = CALENDAR_IDX_META
             db.save(TusKeys.CAL_INDEX_DAY.value, tcal_day)

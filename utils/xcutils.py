@@ -8,7 +8,7 @@ import pandas as pd
 log = logbook.Logger('bstutl')
 
 XTUS_FREQS = ['1min', '5min', '15min', '30min', '60min']
-XTUS_FREQ_BARS = {'1min': 241, '5min': 49, '15min': 17, '30min': 9, '60min': 5}
+XTUS_FREQ_BARS = {'1min': 240, '5min': 48, '15min': 16, '30min': 8, '60min': 4}
 
 
 def nadata_iter(ar_flags, max_length):
@@ -377,32 +377,32 @@ def integrity_check_kd_vmin(dt, dtval, trade_days, susp_info=None, freq='1min', 
 
     nbars = XTUS_FREQ_BARS[freq]
 
-    b_vld = False
+    bvalid = False
     if dt in trade_days:
         vldlen = np.sum(~np.isnan(dtval))
         if susp_info is None:
             if vldlen == nbars:
-                b_vld = True
+                bvalid = True
         else:
             susp = susp_info.loc[(susp_info['suspend_type'] == 'S') & (susp_info.index == dt), :]
             if not susp.empty:
                 if susp['suspend_timing'].isna():  # .iloc[-1]
                     # 当日全天停牌
                     if vldlen == 0:
-                        b_vld = True
+                        bvalid = True
                 else:
                     # 部分时间停牌
                     if nbars > vldlen > 0:
-                        b_vld = True
+                        bvalid = True
             else:
                 if 0 < vldlen <= nbars:
                     # Fixme, 如果部分时间没有交易，vol=0, vldlen可能小于nbars
-                    b_vld = True
+                    bvalid = True
 
-        if not b_vld and susp_info is not None:
+        if not bvalid and susp_info is not None:
             log.info('[!KDVMIN]-: {}-{}:: {}-{} '.format(code, dt, len(susp), vldlen))
 
-    return b_vld
+    return bvalid
 
 
 def df_to_sarray(df):

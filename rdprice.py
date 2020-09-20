@@ -75,7 +75,7 @@ class XcReaderPrice(object):
         return all_out
 
     @api_call
-    def get_price_minute(self, code, start, end, freq='5min', astype='E', merge_open=True, resample=False,
+    def get_price_minute(self, code, start, end, freq='5min', astype='E', resample=False,
                          flag=IOFLAG.READ_XC):
         """
         按日存取股票的分钟线数据
@@ -95,7 +95,6 @@ class XcReaderPrice(object):
         :param end:
         :param freq:
         :param astype: asset type. 'E' for stock, 'I' for index, 'FD' for fund.
-        :param merge_open: True, merge first 9:30 Kbar to follow KBar.
         :param resample: if use 1Min data resample to others
         :param flag:
         :return:
@@ -137,25 +136,6 @@ class XcReaderPrice(object):
                         # 如果全天无交易，vol == 0, 则清空df.
                         ii.loc[:, :] = np.nan
                 out[dtkey] = db.save(dtkey, ii, raw_mode=True)
-
-        if merge_open:
-            # Handle the first row of every day. (the Kbar at 9:30)
-            tmpout1 = {}
-            for k, v in out.items():
-                tmpout1[k] = v
-                if v is not None:
-                    if v.shape[0] > 2:
-                        v[1, 0] = v[0, 0]  # Open
-                        v[1, 1] = np.max(v[:2, 1])  # High
-                        v[1, 2] = np.min(v[:2, 2])  # low
-                        v[1, 4] = np.sum(v[:2, 4])  # volume
-                        v[1, 5] = np.sum(v[:2, 5])  # amount
-                        tmpout1[k] = v[1:, :]
-            out = tmpout1
-
-            periods = XTUS_FREQ_BARS[freq]
-            mask = (np.arange(len(allmins)) % periods) != 0
-            allmins = allmins[mask]
 
         out = list(out.values())
         out = np.concatenate(out)

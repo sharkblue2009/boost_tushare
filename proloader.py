@@ -1,10 +1,10 @@
 import tushare as ts
-from ._passwd import TUS_TOKEN
 
-from .xcdb.xcdb import DATE_FORMAT, DATETIME_FORMAT
+from ._passwd import TUS_TOKEN
 from .schema import *
-from .utils.xcutils import *
 from .utils.qos import ThreadingTokenBucket
+from .utils.xcutils import *
+from .xcdb.xcdb import DATE_FORMAT, DATETIME_FORMAT
 
 
 class XcNLBasic(object):
@@ -161,7 +161,7 @@ class XcNLPrice(object):
     # from ratelimit import limits, sleep_and_retry
     # @sleep_and_retry
     # @limits(30, period=120)
-    def set_price_minute(self, code, start, end, freq='1min', astype='E'):
+    def set_price_minute(self, code, start, end, freq='1min', astype='E', merge_first=True):
         """
         Note: 停牌时，pro_bar对于分钟K线，仍然能取到数据，返回的OHLC是pre_close值， vol值为0.
                 但对于停牌时的日线， 则没有数据。
@@ -169,7 +169,7 @@ class XcNLPrice(object):
         :param start:
         :param end:
         :param freq:
-        :param resample: if use 1Min data resample to others
+        :param merge_first: True, merge first 9:30 Kbar to follow KBar.
         :return:
         """
         start_raw = start.strftime(DATETIME_FORMAT)
@@ -181,8 +181,27 @@ class XcNLPrice(object):
             data = data.rename(columns={'vol': 'volume'})
             # convert %Y-%m-%d %H:%M:%S to %Y%m%d %H:%M:%S
             data['trade_time'] = data['trade_time'].apply(lambda x: x.replace('-', ''))
+
+            nbars = XTUS_FREQ_BARS[freq] + 1
+            if len(data) % nbars != 0:
+                log.error('min kbar length incorrect: {}-{}'.format(len(data), nbars))
+
+            if merge_first:
+                # Handle the first row of every day. (the Kbar at 9:30)
+                # Note : Data from tushare is in reverse order
+                for k in range(len(data) - 1, 0, -nbars):
+                    v = data
+                    v.open[k - 1] = v.open[k]  # Open
+                    v.high[k - 1] = v.high[(k - 1):(k + 1)].max()  # High
+                    v.low[k - 1] = v.low[(k - 1):(k + 1)].min()  # low
+                    v.volume[k - 1] = v.volume[(k - 1):(k + 1)].sum()  # volume
+                    v.amount[k - 1] = v.amount[(k - 1):(k + 1)].sum()  # amount
+
+                mask = (np.arange(len(data)) % nbars) != (nbars - 1)
+                data = data[mask]
+
         else:
-            print('min_data: {}, {}-{}'.format(code, start_raw, end_raw))
+            log.error('min data empty: {}, {}-{}'.format(code, start_raw, end_raw))
         return data
 
     def set_stock_daily_info(self, code, start, end):
@@ -199,7 +218,7 @@ class XcNLPrice(object):
         end_raw = end.strftime(DATE_FORMAT)
         self.ts_token.block_consume(1)
         data = self.pro_api.daily_basic(ts_code=code, start_date=start_raw, end_date=end_raw,
-                                        fields=fcols+['trade_date'])
+                                        fields=fcols + ['trade_date'])
 
         return data
 
@@ -214,7 +233,8 @@ class XcNLPrice(object):
         start_raw = start.strftime(DATE_FORMAT)
         end_raw = end.strftime(DATE_FORMAT)
         self.ts_token.block_consume(1)
-        data = self.pro_api.adj_factor(ts_code=code, start_date=start_raw, end_date=end_raw, fields=fcols+['trade_date'])
+        data = self.pro_api.adj_factor(ts_code=code, start_date=start_raw, end_date=end_raw,
+                                       fields=fcols + ['trade_date'])
 
         return data
 
