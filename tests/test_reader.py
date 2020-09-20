@@ -144,7 +144,7 @@ class TestTusReader(unittest.TestCase):
 
     def test_benchmark_all(self):
         # print(timeit.Timer(lambda: get_all_price_day_parallel()).timeit(1))
-        # print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
+        print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
         #
         # print(timeit.Timer(lambda: get_all_dayinfo()).timeit(1))
 
