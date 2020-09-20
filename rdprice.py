@@ -46,7 +46,6 @@ class XcReaderPrice(object):
         vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal)
         if len(vdates) == 0:
             return None
-        dayindex, alldays = gen_dayindex_monthly(vdates, self.trade_cal)
 
         db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
         out = {}
@@ -59,16 +58,18 @@ class XcReaderPrice(object):
                     continue
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_price_daily(code, MONTH_START(dd), MONTH_END(dd), astype)
+                dayindex = gen_dayindex_monthly(dd, self.trade_cal)
                 if ii is None:
-                    ii = pd.DataFrame(index=dayindex[dd], columns=EQUITY_DAILY_PRICE_META['columns'], dtype='f8')
+                    ii = pd.DataFrame(index=dayindex, columns=EQUITY_DAILY_PRICE_META['columns'], dtype='f8')
                 else:
                     ii = ii.set_index('trade_date', drop=True)
                     ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
-                    ii = ii.reindex(index=dayindex[dd])
+                    ii = ii.reindex(index=dayindex)
                 out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
         out = list(out.values())
         out = np.vstack(out)
+        alldays = gen_dayindex_periods(vdates[0], len(out), self.trade_cal)
         all_out = pd.DataFrame(data=out, columns=EQUITY_DAILY_PRICE_META['columns'])
         all_out = all_out.set_index(alldays)
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
@@ -112,8 +113,6 @@ class XcReaderPrice(object):
         vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal)
         if len(vdates) == 0:
             return None
-        tcal = self.freq_to_cal(freq)
-        minindex, allmins = gen_minindex_daily(vdates, tcal)
 
         db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + curfreq), EQUITY_MINUTE_PRICE_META)
         out = {}
@@ -126,12 +125,14 @@ class XcReaderPrice(object):
                     continue
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_price_minute(code, dd, dd, curfreq, astype)
+                tcal = self.freq_to_cal(freq)
+                minindex = gen_minindex_daily(dd, tcal)
                 if ii is None:
-                    ii = pd.DataFrame(index=minindex[dd], columns=EQUITY_MINUTE_PRICE_META['columns'], dtype='f8')
+                    ii = pd.DataFrame(index=minindex, columns=EQUITY_MINUTE_PRICE_META['columns'], dtype='f8')
                 else:
                     ii = ii.set_index('trade_time', drop=True)
                     ii.index = pd.to_datetime(ii.index, format=DATETIME_FORMAT)
-                    ii = ii.reindex(index=minindex[dd])
+                    ii = ii.reindex(index=minindex)
                     if (ii.volume == 0.0).all():
                         # 如果全天无交易，vol == 0, 则清空df.
                         ii.loc[:, :] = np.nan
@@ -139,6 +140,8 @@ class XcReaderPrice(object):
 
         out = list(out.values())
         out = np.concatenate(out)
+        tcal = self.freq_to_cal(freq)
+        allmins = gen_minindex_periods(vdates[0], len(out), tcal)
         all_out = pd.DataFrame(data=out, columns=EQUITY_MINUTE_PRICE_META['columns'])
         all_out = all_out.set_index(allmins)
 
@@ -172,7 +175,6 @@ class XcReaderPrice(object):
         vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal)
         if len(vdates) == 0:
             return
-        dayindex, alldays = gen_dayindex_monthly(vdates, self.trade_cal)
 
         db = self.facc(TusSdbs.SDB_STOCK_DAILY_INFO.value + code, STOCK_DAILY_INFO_META)
         out = {}
@@ -185,16 +187,18 @@ class XcReaderPrice(object):
                     continue
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_stock_daily_info(code, MONTH_START(dd), MONTH_END(dd))
+                dayindex = gen_dayindex_monthly(dd, self.trade_cal)
                 if ii is None:
-                    ii = pd.DataFrame(index=dayindex[dd], columns=STOCK_DAILY_INFO_META['columns'], dtype='f8')
+                    ii = pd.DataFrame(index=dayindex, columns=STOCK_DAILY_INFO_META['columns'], dtype='f8')
                 else:
                     ii = ii.set_index('trade_date', drop=True)
                     ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
-                    ii = ii.reindex(index=dayindex[dd])
+                    ii = ii.reindex(index=dayindex)
                 out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
         out = list(out.values())
         out = np.concatenate(out)
+        alldays = gen_dayindex_ndays(vdates[0], self.trade_cal, len(out))
         all_out = pd.DataFrame(data=out, columns=STOCK_DAILY_INFO_META['columns'])
         all_out = all_out.set_index(alldays)
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
@@ -218,7 +222,6 @@ class XcReaderPrice(object):
         vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal)
         if len(vdates) == 0:
             return
-        dayindex, alldays = gen_dayindex_monthly(vdates, self.trade_cal)
 
         db = self.facc(TusSdbs.SDB_STOCK_ADJFACTOR.value + code, STOCK_ADJFACTOR_META)
         out = {}
@@ -231,16 +234,18 @@ class XcReaderPrice(object):
                     continue
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_stock_adjfactor(code, MONTH_START(dd), MONTH_END(dd))
+                dayindex = gen_dayindex_monthly(dd, self.trade_cal)
                 if ii is None:
-                    ii = pd.DataFrame(index=dayindex[dd], columns=STOCK_ADJFACTOR_META['columns'], dtype='f8')
+                    ii = pd.DataFrame(index=dayindex, columns=STOCK_ADJFACTOR_META['columns'], dtype='f8')
                 else:
                     ii = ii.set_index('trade_date', drop=True)
                     ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
-                    ii = ii.reindex(index=dayindex[dd])
+                    ii = ii.reindex(index=dayindex)
                 out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
         out = list(out.values())
         out = np.concatenate(out)
+        alldays = gen_dayindex_ndays(vdates[0], self.trade_cal, len(out))
         all_out = pd.DataFrame(data=out, columns=STOCK_ADJFACTOR_META['columns'])
         all_out = all_out.set_index(alldays)
         all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]

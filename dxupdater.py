@@ -65,7 +65,6 @@ class XcUpdaterPrice(object):
         vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal)
         if len(vdates) == 0:
             return 0
-        dayindex, alldays = gen_dayindex_monthly(vdates, self.trade_cal)
 
         db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
@@ -102,7 +101,8 @@ class XcUpdaterPrice(object):
                 xxd = data.loc[data['trade_date'].map(lambda x: x[:6] == dtkey[:6]), :]
                 xxd = xxd.set_index('trade_date', drop=True)
                 xxd.index = pd.to_datetime(xxd.index, format=DATE_FORMAT)
-                xxd = xxd.reindex(index=dayindex[tt])
+                dayindex = gen_dayindex_monthly(tt, self.trade_cal)
+                xxd = xxd.reindex(index=dayindex)
                 db.save(dtkey, xxd)
 
         return count
@@ -124,8 +124,8 @@ class XcUpdaterPrice(object):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
         vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal)
-        tcal = self.freq_to_cal(freq)
-        minindex, allmins = gen_minindex_daily(vdates, tcal)
+        if len(vdates) == 0:
+            return
 
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
         db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq), EQUITY_MINUTE_PRICE_META)
@@ -162,7 +162,9 @@ class XcUpdaterPrice(object):
                 xxd = data.loc[data['trade_time'].map(lambda x: x[:8] == dtkey[:8]), :]
                 xxd = xxd.set_index('trade_time', drop=True)
                 xxd.index = pd.to_datetime(xxd.index, format=DATETIME_FORMAT)
-                xxd = xxd.reindex(index=minindex[tt])
+                tcal = self.freq_to_cal(freq)
+                minindex = gen_minindex_daily(tt, tcal)
+                xxd = xxd.reindex(index=minindex)
                 if (xxd.volume == 0.0).all():
                     # 如果全天无交易，vol == 0, 则清空df.
                     xxd.loc[:, :] = np.nan
@@ -184,7 +186,6 @@ class XcUpdaterPrice(object):
         vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal)
         if len(vdates) == 0:
             return 0
-        dayindex, alldays = gen_dayindex_monthly(vdates, self.trade_cal)
 
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
         db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code), STOCK_ADJFACTOR_META)
@@ -218,7 +219,8 @@ class XcUpdaterPrice(object):
                 xxd = data.loc[data['trade_date'].map(lambda x: x[:6] == dtkey[:6]), :]
                 xxd = xxd.set_index('trade_date', drop=True)
                 xxd.index = pd.to_datetime(xxd.index, format=DATE_FORMAT)
-                xxd = xxd.reindex(index=dayindex[tt])
+                dayindex = gen_dayindex_monthly(tt, self.trade_cal)
+                xxd = xxd.reindex(index=dayindex)
                 db.save(dtkey, xxd)
         return count
 
@@ -236,7 +238,6 @@ class XcUpdaterPrice(object):
         vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal)
         if len(vdates) == 0:
             return 0
-        dayindex, alldays = gen_dayindex_monthly(vdates, self.trade_cal)
 
         db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code), STOCK_DAILY_INFO_META)
         bvalid = np.full((len(vdates),), True, dtype=np.bool)
@@ -265,11 +266,12 @@ class XcUpdaterPrice(object):
                 break
             dts_upd = vdates[tstart: tend + 1]
             data = self.netloader.set_stock_daily_info(code, MONTH_START(dts_upd[0]), MONTH_END(dts_upd[-1]))
-            for xx in dts_upd:
-                dtkey = xx.strftime(DATE_FORMAT)
+            for tt in dts_upd:
+                dtkey = tt.strftime(DATE_FORMAT)
                 xxd = data.loc[data['trade_date'].map(lambda x: x[:6] == dtkey[:6]), :]
                 xxd = xxd.set_index('trade_date', drop=True)
                 xxd.index = pd.to_datetime(xxd.index, format=DATE_FORMAT)
-                xxd = xxd.reindex(index=dayindex[tt])
+                dayindex = gen_dayindex_monthly(tt, self.trade_cal)
+                xxd = xxd.reindex(index=dayindex)
                 db.save(dtkey, xxd)
         return count

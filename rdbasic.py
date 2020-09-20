@@ -70,6 +70,12 @@ class XcReaderBasic(object):
         if freq == '5min':
             return self.trade_cal_5min
 
+    def cal_m2day_map(self):
+        pass
+
+    def cal_d2min_map(self):
+        pass
+
     @lazyval
     def index_info(self):
         info = self.get_index_info()

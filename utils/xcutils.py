@@ -47,6 +47,22 @@ def nadata_iter(ar_flags, max_length):
     yield None, None
 
 
+def DAY_START(date):
+    """
+    :param date:
+    :return:
+    """
+    dd = date
+    mday = pd.Timestamp(year=dd.year, month=dd.month, day=dd.day) + pd.Timedelta(hours=9, minutes=30)
+    return mday
+
+
+def DAY_END(date):
+    dd = date
+    mday = pd.Timestamp(year=dd.year, month=dd.month, day=dd.day) + pd.Timedelta(hours=15, minutes=0)
+    return mday
+
+
 def MONTH_START(date, trade_days=None):
     """
     根据某个日期找到这个月的第一天，或者本月交易日的第一天。
@@ -147,20 +163,23 @@ def gen_keys_monthly(start_dt, end_dt, asset_life, trade_cal):
     return key_index
 
 
-def gen_dayindex_monthly(month_sess, trade_cal):
+def gen_dayindex_monthly(month_k, trade_cal):
     """
-
-    :param month_sess: monthly session index
+    :param month_k: monthly key index
     :param trade_cal: day trade_cal
-    :return: dict, {month_key: day_sess in the month}
+    :return: {month_key: day_sess in the month}
     """
-    dayindex = {}
-    alldays = pd.DatetimeIndex([])
-    for n, v in enumerate(month_sess):
-        dayindex[v] = trade_cal[(trade_cal.month == v.month) & (trade_cal.year == v.year)]
-        alldays = alldays.append(dayindex[v])
+    mst = MONTH_START(month_k)
+    med = MONTH_END(month_k)
+    dayindex = trade_cal[(trade_cal >= mst) & (trade_cal.year <= med)]
 
-    return dayindex, alldays
+    return dayindex
+
+
+def gen_dayindex_periods(start_day, n_periods, trade_cal):
+    tmp_cal = trade_cal[trade_cal >= start_day]
+    tmp_cal = tmp_cal[:n_periods]
+    return tmp_cal
 
 
 def gen_keys_daily(start_dt, end_dt, asset_life, trade_cal):
@@ -187,21 +206,24 @@ def gen_keys_daily(start_dt, end_dt, asset_life, trade_cal):
     return key_index
 
 
-def gen_minindex_daily(day_sess, trade_cal_min):
+def gen_minindex_daily(day_time, trade_cal_min):
     """
-
-    :param month_sess: monthly session index
+    :param day_time: day session index
     :param trade_cal_min: minute trade_cal
     :return: dict, {month_key: day_sess in the month}
     """
-    minindex = {}
-    allminutes = pd.DatetimeIndex([])
-    for n, v in enumerate(day_sess):
-        minindex[v] = trade_cal_min[(trade_cal_min.month == v.month) &
-                                    (trade_cal_min.year == v.year) & (trade_cal_min.day == v.day)]
-        allminutes = allminutes.append(minindex[v])
 
-    return minindex, allminutes
+    mst = DAY_START(day_time)
+    med = DAY_END(day_time)
+    minindex = trade_cal_min[(trade_cal_min >= mst) & (trade_cal_min.year <= med)]
+
+    return minindex
+
+
+def gen_minindex_periods(start_time, n_periods, trade_cal):
+    tmp_cal = trade_cal[trade_cal >= start_time]
+    tmp_cal = tmp_cal[:n_periods]
+    return tmp_cal
 
 
 def gen_keys_quarterly(start_dt, end_dt, asset_life=None, trade_cal=None):
