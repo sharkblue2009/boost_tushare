@@ -75,13 +75,10 @@ class XcLMDBAccessor(XcAccessor):
     ...
     del db
     """
-    metadata = {}
 
     def __init__(self, master_db: XcLMDB, sdb: str, metadata=None, readonly=False):
         self.master = master_db
         self.db = master_db.get_sdb(sdb)
-        self.tpkey = metadata['tpk']
-        self.tpval = metadata['tpv']
         self.metadata = metadata
         self.txn = self.master.env.begin(db=self.db, write=True, parent=None)
         return

@@ -1,7 +1,16 @@
 from .xcdb.xcdb import *
 
+def tusbooster_domain_update():
+    """
+    :return:
+    """
 
-def tusbooster_lookup_calendar():
+def tusbooster_domain_load():
+    """
+    :return:
+    """
+
+def tusbooster_updater_init():
     """
     :return:
     """

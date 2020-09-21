@@ -16,9 +16,6 @@ log = Logger('xcdb')
 
 DBS_OPENED = {}
 
-DATE_FORMAT = '%Y%m%d'
-DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
-
 
 def force_bytes(s):
     if isinstance(s, str):
@@ -107,9 +104,20 @@ class XcAccessor(object):
         write transition begin-commit block can not insert other transition without nesting.
 
     """
-    metadata = {}
+    _metadata = None
     tpkey = KVTYPE.TPK_RAW
     tpval = KVTYPE.TPV_DFRAME
+
+    @property
+    def metadata(self):
+        return self._metadata
+
+    @metadata.setter
+    def metadata(self, val):
+        self._metadata = val
+        self.tpkey = val['tpk']
+        self.tpval = val['tpv']
+        return
 
     def to_db_key(self, key):
         """
@@ -176,6 +184,8 @@ class XcAccessor(object):
             if isinstance(val, np.ndarray):
                 if val.size == 0:
                     return NOT_EXIST, val
+                if 'dtype' in self.metadata.keys():
+                    val = val.astype(self.metadata['dtype'])
                 return pickle.dumps(val), val
         elif self.tpval == KVTYPE.TPV_OBJECT:
             return pickle.dumps(val), val

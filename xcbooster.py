@@ -12,7 +12,7 @@ from .proloader import netloader_init, TusNetLoader
 # from .xcdb.zleveldb import *
 from .xcdb.zlmdb import *
 from functools import partial
-
+from .domain import XcDomain
 
 class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice, XcCheckerPrice):
     """
@@ -49,12 +49,16 @@ class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice
         else:
             self.xctus_current_day = xctus_current_day
 
+        self.xctus_first_day = pd.Timestamp('20080101')
+
         print('TuBooster: last trade date:{}'.format(self.xctus_current_day))
+        self.domain = XcDomain()
 
         super(XcTusBooster, self).__init__()
 
     def __del__(self):
         self.master_db.close()
+
 
 
 ###############################################################################

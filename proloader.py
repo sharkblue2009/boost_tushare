@@ -4,7 +4,6 @@ from ._passwd import TUS_TOKEN
 from .schema import *
 from .utils.qos import ThreadingTokenBucket
 from .utils.xcutils import *
-from .xcdb.xcdb import DATE_FORMAT, DATETIME_FORMAT
 
 
 class XcNLBasic(object):
@@ -101,6 +100,9 @@ class XcNLBasic(object):
         :return:
         """
         # 找到所处月份的最后一个交易日
+        if not isinstance(date, pd.Timestamp):
+            date = pd.Timestamp(date)
+
         valid_day = date.strftime(DATE_FORMAT)
         info = self.pro_api.index_weight(index_code=index_symbol, trade_date=valid_day)
         if not info.empty:
@@ -150,6 +152,9 @@ class XcNLPrice(object):
         :param end:
         :return:
         """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
         start_raw = start.strftime(DATE_FORMAT)
         end_raw = end.strftime(DATE_FORMAT)
 
@@ -172,6 +177,9 @@ class XcNLPrice(object):
         :param merge_first: True, merge first 9:30 Kbar to follow KBar.
         :return:
         """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
         start_raw = start.strftime(DATETIME_FORMAT)
         end_raw = (end + pd.Timedelta(hours=17)).strftime(DATETIME_FORMAT)
 
@@ -191,11 +199,11 @@ class XcNLPrice(object):
                 # Note : Data from tushare is in reverse order
                 for k in range(len(data) - 1, 0, -nbars):
                     v = data
-                    v.open[k - 1] = v.open[k]  # Open
-                    v.high[k - 1] = v.high[(k - 1):(k + 1)].max()  # High
-                    v.low[k - 1] = v.low[(k - 1):(k + 1)].min()  # low
-                    v.volume[k - 1] = v.volume[(k - 1):(k + 1)].sum()  # volume
-                    v.amount[k - 1] = v.amount[(k - 1):(k + 1)].sum()  # amount
+                    v.loc[k - 1, 'open'] = v.loc[k, 'open']  # Open
+                    v.loc[k - 1, 'high'] = v.loc[(k - 1):(k + 1), 'high'].max()  # High
+                    v.loc[k - 1, 'low'] = v.loc[(k - 1):(k + 1), 'low'].min()  # low
+                    v.loc[k - 1, 'volume'] = v.loc[(k - 1):(k + 1), 'volume'].sum()  # volume
+                    v.loc[k - 1, 'amount'] = v.loc[(k - 1):(k + 1), 'amount'].sum()  # amount
 
                 mask = (np.arange(len(data)) % nbars) != (nbars - 1)
                 data = data[mask]
@@ -212,6 +220,9 @@ class XcNLPrice(object):
         :param end:
         :return:
         """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
         fcols = STOCK_DAILY_INFO_META['columns']
 
         start_raw = start.strftime(DATE_FORMAT)
@@ -229,6 +240,9 @@ class XcNLPrice(object):
         :param end:
         :return:
         """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
         fcols = STOCK_ADJFACTOR_META['columns']
         start_raw = start.strftime(DATE_FORMAT)
         end_raw = end.strftime(DATE_FORMAT)
@@ -245,6 +259,9 @@ class XcNLPrice(object):
         :param code:
         :return:
         """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
         fcols = STOCK_SUSPEND_D_META['columns']
 
         start_raw = start.strftime(DATE_FORMAT)
@@ -262,7 +279,8 @@ class XcNLPrice(object):
         :return:
         """
         fcols = SUSPEND_D_META['columns']
-
+        if not isinstance(date, pd.Timestamp):
+            date = pd.Timestamp(date)
         start_raw = date.strftime(DATE_FORMAT)
 
         self.ts_token.block_consume(1)

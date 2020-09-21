@@ -32,14 +32,16 @@ def cntus_update_basic():
     """
     log.info('Update basic information...(Trading Calendar, Asset info)')
     tusbooster_init()
-    tusbooster_lookup_calendar()
+    tusbooster_domain_update()
+    tusbooster_domain_load()
+    # tusbooster_updater_init()
 
-    get_index_info(IOFLAG.READ_NETDB)
-    get_stock_info(IOFLAG.READ_NETDB)
-    get_fund_info(IOFLAG.READ_NETDB)
-    get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
-    get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
-    log.info('Finished')
+    # get_index_info(IOFLAG.READ_NETDB)
+    # get_stock_info(IOFLAG.READ_NETDB)
+    # get_fund_info(IOFLAG.READ_NETDB)
+    # get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
+    # get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
+    # log.info('Finished')
 
     start_date = '20100101'
     end_date = pd.Timestamp.today().strftime('%Y%m%d')
@@ -52,6 +54,8 @@ def cntus_update_basic():
 
 def cntus_update_stock_day(start_date='20150101'):
     tusbooster_init()
+    tusbooster_domain_load()
+    tusbooster_updater_init()
 
     df_stock = get_stock_info()
 
@@ -70,11 +74,6 @@ def cntus_update_stock_day(start_date='20150101'):
 
     # log.info('Downloading stocks suspend data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
     # update_suspend_d(start_date, end_date)
-
-    # dummy read suspend_info
-    suspend_info = get_suspend_d(start_date, end_date)
-    # booster = init_booster()
-    # XcTusBooster.suspend_info.update(booster)
 
     all_symbols = []
     for k, stk in df_stock['ts_code'].items():
@@ -98,6 +97,8 @@ def cntus_update_stock_day(start_date='20150101'):
 
 def cntus_update_stock_day_ext(start_date='20150101'):
     tusbooster_init()
+    tusbooster_domain_load()
+    tusbooster_updater_init()
 
     df_stock = get_stock_info()
 
@@ -143,6 +144,8 @@ def cntus_update_stock_day_ext(start_date='20150101'):
 
 def cntus_update_index_day(start_date):
     tusbooster_init()
+    tusbooster_domain_load()
+    tusbooster_updater_init()
 
     df_index = get_index_info()
 
@@ -178,6 +181,8 @@ def cntus_update_index_day(start_date):
 
 def cntus_update_stock_min(start_date='20190101'):
     tusbooster_init()
+    tusbooster_domain_load()
+    tusbooster_updater_init()
 
     df_stock = get_stock_info()
 
@@ -218,6 +223,8 @@ def cntus_update_stock_min(start_date='20190101'):
 
 def cntus_update_index_min(start_date='20190101'):
     tusbooster_init()
+    tusbooster_domain_load()
+    tusbooster_updater_init()
 
     df_index = get_index_info()
 

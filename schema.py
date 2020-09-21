@@ -57,7 +57,13 @@ CALENDAR_RAW_META = {
     'dtype': 'U8',
 }
 
-CALENDAR_IDX_META = {
+CALENDAR_D_IDX_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_INDEX,
+    'dtype': 'M8[D]',
+}
+
+CALENDAR_M_IDX_META = {
     'tpk': KVTYPE.TPK_RAW,
     'tpv': KVTYPE.TPV_INDEX,
     'dtype': 'M8[m]',
