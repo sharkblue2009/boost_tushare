@@ -14,6 +14,8 @@ from functools import partial
 from .domain import XcDomain
 from .xcdb.xcdb import *
 from .layout import *
+from logbook import Logger
+log = Logger('xtus')
 
 
 class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice):
@@ -53,7 +55,7 @@ class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice):
 
         self.xctus_first_day = pd.Timestamp('20080101')
 
-        print('TuBooster: date range:{}>>>{}'.format(self.xctus_first_day, self.xctus_last_day))
+        log.info('TuBooster: date range:{}>>>{}'.format(self.xctus_first_day, self.xctus_last_day))
         # self.domain = XcDomain()
 
         super(XcTusBooster, self).__init__()

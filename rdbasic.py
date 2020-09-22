@@ -12,6 +12,9 @@ from .layout import *
 from .utils.memoize import lazyval
 from .utils.xcutils import *
 from .xcdb.xcdb import *
+from logbook import Logger
+
+log = Logger('xtus')
 
 
 class XcReaderBasic(XcDomain):
@@ -19,6 +22,7 @@ class XcReaderBasic(XcDomain):
     Basic Information
     """
     facc = None
+    netloader: TusNetLoader = None
 
     def __init__(self):
         super(XcReaderBasic, self).__init__()
@@ -34,10 +38,10 @@ class XcReaderBasic(XcDomain):
         db.commit()
         if first_date is None or current_date is None:
             self.update_domain()
+            first_date = self.xctus_first_day
+            current_date = self.xctus_last_day
 
-        print('DB_Domain calendar:{}, {}'.format(first_date, current_date))
-        self.xctus_first_day = first_date
-        self.xctus_last_day = current_date
+        log.info('DB_Domain calendar:{}, {}'.format(first_date, current_date))
 
         db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_DTIDX_META)
         self._cal_day = db.load(TusKeys.CAL_INDEX_DAY.value)
@@ -71,15 +75,15 @@ class XcReaderBasic(XcDomain):
         db.commit()
 
         if first_date is not None and current_date is not None:
-            if first_date == self.xctus_first_day and current_date == self.last_day:
+            if first_date == self.xctus_first_day and current_date == self.xctus_last_day:
                 b_need_update = False
 
         if b_need_update or force_mode:
-            print('Update calendar:{}, {}'.format(first_date, current_date))
+            log.info('Update calendar:{}, {}'.format(first_date, current_date))
             tcal = self.get_trade_cal(IOFLAG.READ_NETDB)
 
             tcday = pd.to_datetime(tcal.tolist(), format='%Y%m%d')
-            tcday = tcday[(self.xctus_first_day <= tcday) & (tcday <= self.last_day)]
+            tcday = tcday[(self.xctus_first_day <= tcday) & (tcday <= self.xctus_last_day)]
             tc1min = session_day_to_min_tus(tcday, '1min', market_open=False)
             tc5min = session_day_to_min_tus(tcday, '5min', market_open=False)
 
@@ -91,17 +95,17 @@ class XcReaderBasic(XcDomain):
 
             db.metadata = GENERAL_OBJ_META
             db.save(TusKeys.CAL_FIRST_DATE.value, self.xctus_first_day)
-            db.save(TusKeys.CAL_CURRENT_DATE.value, self.last_day)
+            db.save(TusKeys.CAL_CURRENT_DATE.value, self.xctus_last_day)
             db.commit()
-            print('Done')
+            log.info('Done')
 
-        print('Update asset info...')
+        log.info('Update asset info...')
         self.get_index_info(IOFLAG.READ_NETDB)
         self.get_stock_info(IOFLAG.READ_NETDB)
         self.get_fund_info(IOFLAG.READ_NETDB)
         self.get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
         self.get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
-        print('Done')
+        log.info('Done')
         return
 
     ##########################################################
@@ -187,8 +191,8 @@ class XcReaderBasic(XcDomain):
         :return:
         """
         # 找到所处月份的第一个交易日
-        trdt = pd.Timestamp(date)
-        mmidx = self.gen_dindex_monthly(MONTH_START(trdt), MONTH_END(trdt))
+        mmdts = self.gen_keys_monthly(date, date, None, None)
+        mmidx = self.gen_dindex_monthly(mmdts[0], mmdts[-1])
         if len(mmidx) == 0:
             return
 

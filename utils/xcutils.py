@@ -12,6 +12,7 @@ XTUS_FREQ_BARS = {'1min': 240, '5min': 48, '15min': 16, '30min': 8, '60min': 4}
 DATE_FORMAT = '%Y%m%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
+
 def nadata_iter(ar_flags, max_length):
     """
     生成器，查找连续的False序列，返回位置 start, end
@@ -58,6 +59,18 @@ def dt64_to_strdt(dt):
     # dtkey = dd.strftime(DATE_FORMAT)
     dtkey = np.datetime_as_string(dt, unit='D')
     return dtkey
+
+
+def strdt_to_dt64(dt):
+    """
+    Convert  String format Datatime used for Tushare np.datetime64
+    :param dt:
+    :return:
+    """
+    if isinstance(dt, np.datetime64):
+        return dt
+    dt64 = pd.Timestamp(dt).to_datetime64()
+    return dt64
 
 
 def DAY_START(date):
@@ -238,7 +251,6 @@ def price1m_resample(data1m, freq='5min', market_open=True):
     df_out['amount'] = data1m['amount'].groupby(data1m.index // periods).sum()
     df_out = df_out.set_index('trade_time')
     return df_out
-
 
 
 def df_to_sarray(df):

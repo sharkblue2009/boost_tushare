@@ -1,7 +1,6 @@
 import lmdb
-
 from .xcdb import *
-
+from logbook import Logger
 log = Logger('lmdb')
 
 LMDB_NAME = 'D:/Database/stock_db/TusDBv2'

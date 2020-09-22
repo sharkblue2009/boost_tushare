@@ -1,7 +1,6 @@
-from collections import OrderedDict
-
 from .utils.xcutils import *
-
+from logbook import Logger
+log = Logger('xtus')
 
 class XcDomain(object):
     xctus_last_day = None
@@ -20,7 +19,7 @@ class XcDomain(object):
     suspend_info = None
 
     def __init__(self):
-        print('Domain init.')
+        log.info('Domain init...')
 
     @property
     def trade_cal_raw(self):
@@ -81,17 +80,15 @@ class XcDomain(object):
             self._cal_map_day = pd.Series(data=np.arange(len(self.trade_cal)), index=self.trade_cal, dtype=np.int64)
         return self._cal_map_day
 
-    def gen_keys_monthly(self, start_dt, end_dt, code, astype='E'):
+    def gen_keys_monthly(self, start_dt, end_dt, code=None, astype='E'):
         """
         根据当前交易品种的有效交易日历， 产生月度keys
         :param start_dt:
         :param end_dt:
         :return:
         """
-        if not isinstance(start_dt, np.datetime64):
-            start_dt = pd.Timestamp(start_dt).to_datetime64()
-        if not isinstance(end_dt, np.datetime64):
-            end_dt = pd.Timestamp(end_dt).to_datetime64()
+        start_dt = strdt_to_dt64(start_dt)
+        end_dt = strdt_to_dt64(end_dt)
 
         asset_life = self.asset_lifetime(code, astype)
         if asset_life is not None:
@@ -128,10 +125,8 @@ class XcDomain(object):
         :param trade_cal: trade_cal index
         :return:
         """
-        if not isinstance(start_dt, np.datetime64):
-            start_dt = pd.Timestamp(start_dt).to_datetime64()
-        if not isinstance(end_dt, np.datetime64):
-            end_dt = pd.Timestamp(end_dt).to_datetime64()
+        start_dt = strdt_to_dt64(start_dt)
+        end_dt = strdt_to_dt64(end_dt)
 
         asset_life = self.asset_lifetime(code, astype)
         if asset_life is not None:
@@ -221,7 +216,8 @@ class XcDomain(object):
 
         start_date = info.loc[code, 'start_date']
         end_date = info.loc[code, 'end_date']
-        start_date, end_date = pd.Timestamp(start_date).to_datetime64(), pd.Timestamp(end_date).to_datetime64()
+        start_date = strdt_to_dt64(start_date)
+        end_date = strdt_to_dt64(end_date)
         return start_date, end_date
 
     def integrity_check_km_vday(self, dt, dtval, code=None):

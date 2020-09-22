@@ -24,6 +24,7 @@ class TestTusReader(unittest.TestCase):
     def setUpClass(cls):
         """"""
         cls.reader = tusbooster_init()  # TusXcReader()
+        cls.reader.init_domain()
 
     @classmethod
     def tearDownClass(cls) -> None:

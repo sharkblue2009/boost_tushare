@@ -8,6 +8,8 @@ from .xcdb.zlmdb import *
 from functools import partial
 from .rdbasic import XcReaderBasic
 from .rdprice import XcReaderPrice
+from .utils.memoize import lazyval
+from .proloader import netloader_init, TusNetLoader
 
 log = logbook.Logger('tupd')
 
@@ -16,8 +18,12 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
     """
     rollback: rollback data units to do integrity check when updating
     """
-    netloader: TusNetLoader = None
+
     master_db = None
+
+    @lazyval
+    def netloader(self) -> TusNetLoader:
+        return netloader_init()
 
     def __init__(self, last_day=None, dbtype=DBTYPE.DB_LMDB):
         """
@@ -47,17 +53,17 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
 
         self.xctus_first_day = pd.Timestamp('20080101')
 
-        print('TuUpdater: date range:{}-{}'.format(self.xctus_first_day, self.xctus_last_day))
+        log.info('Updater: date range:{}-{}'.format(self.xctus_first_day, self.xctus_last_day))
 
         super(XcDBUpdater, self).__init__()
 
     def init_domain(self):
         super(XcDBUpdater, self).init_domain()
-        self.suspend_info = self.get_suspend_d(self.xctus_first_day, self.last_day)
+        self.suspend_info = self.get_suspend_d(self.xctus_first_day, self.xctus_last_day)
 
     def update_domain(self, force_mode=False):
         super(XcDBUpdater, self).update_domain(force_mode)
-        self.suspend_info = self.get_suspend_d(self.xctus_first_day, self.last_day)
+        self.suspend_info = self.get_suspend_d(self.xctus_first_day, self.xctus_last_day)
 
     def update_suspend_d(self, start, end):
         """
