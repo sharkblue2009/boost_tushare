@@ -1,7 +1,7 @@
 import tushare as ts
 
 from ._passwd import TUS_TOKEN
-from .schema import *
+from .layout import *
 from .utils.qos import ThreadingTokenBucket
 from .utils.xcutils import *
 
@@ -199,6 +199,9 @@ class XcNLPrice(object):
                 # Note : Data from tushare is in reverse order
                 for k in range(len(data) - 1, 0, -nbars):
                     v = data
+                    assert((v.loc[k - 1, 'pre_close'] == v.loc[k, 'close']) &
+                           np.isnan(v.loc[k, 'pre_close']))  # open KBar check.
+
                     v.loc[k - 1, 'open'] = v.loc[k, 'open']  # Open
                     v.loc[k - 1, 'high'] = v.loc[(k - 1):(k + 1), 'high'].max()  # High
                     v.loc[k - 1, 'low'] = v.loc[(k - 1):(k + 1), 'low'].min()  # low
@@ -343,7 +346,7 @@ class TusNetLoader(XcNLBasic, XcNLFinance, XcNLPrice):
 
     def __init__(self):
         """
-        :param xctus_current_day: Tushare last date with data available,
+        :param last_day: Tushare last date with data available,
                             we assume yesterday's data is available in today.
         """
         # self.calendar = get_calendar('XSHG')

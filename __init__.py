@@ -1,7 +1,7 @@
 # import boost_tushare.api as api
 
 
-from .xcbooster import tusbooster_init
+from .xbooster import tusbooster_init
 from .xcdb.xcdb import IOFLAG
 
 

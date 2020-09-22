@@ -4,13 +4,13 @@ from .utils.xcutils import *
 
 
 class XcDomain(object):
-    xctus_current_day = None
+    xctus_last_day = None
     xctus_first_day = None
 
-    _trade_cal_raw = None
-    _trade_cal_day = None
-    _trade_cal_1min = None
-    _trade_cal_5min = None
+    _cal_raw = None    # Raw trading calendar from Tushare. string format
+    _cal_day = None
+    _cal_1min = None
+    _cal_5min = None
     _cal_map_month = None
     _cal_map_day = None
 
@@ -19,16 +19,21 @@ class XcDomain(object):
     fund_info = None
     suspend_info = None
 
+    def __init__(self):
+        print('Domain init.')
+
     @property
     def trade_cal_raw(self):
-        return self._trade_cal_raw
+        return self._cal_raw
 
     @trade_cal_raw.setter
     def trade_cal_raw(self, value):
-        self._trade_cal_raw = None
-        self._trade_cal_day = None
-        self._trade_cal_1min = None
-        self._trade_cal_5min = None
+        self._cal_raw = None
+        self._cal_day = None
+        self._cal_1min = None
+        self._cal_5min = None
+        self._cal_map_month = None
+        self._cal_map_day = None
 
     @property
     def trade_cal(self):
@@ -36,15 +41,15 @@ class XcDomain(object):
         当前有效的交易日历
         :return:
         """
-        return self._trade_cal_day
+        return self._cal_day
 
     @property
     def trade_cal_1min(self):
-        return self._trade_cal_1min
+        return self._cal_1min
 
     @property
     def trade_cal_5min(self):
-        return self._trade_cal_5min
+        return self._cal_5min
 
     def freq_to_cal(self, freq):
         if freq == '1min':
@@ -57,22 +62,23 @@ class XcDomain(object):
     def tcalmap_mon(self):
         if self._cal_map_month is None:
             tstart = self.xctus_first_day
-            tend = self.xctus_current_day
+            tend = self.xctus_last_day
             m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
             m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
             mdates = pd.date_range(m_start, m_end, freq='MS').values
-            self._cal_map_month = pd.DataFrame(index=mdates, columns=['start', 'end'])
+            self._cal_map_month = pd.DataFrame(index=mdates, columns=['start', 'end'], dtype=np.int64)
             for dd in mdates:
                 stt = np.sum(self.trade_cal < dd)
                 ett = np.sum(self.trade_cal <= MONTH_END(dd))
                 self._cal_map_month.loc[dd, 'start'] = stt
                 self._cal_map_month.loc[dd, 'end'] = ett
+            self._cal_map_month = self._cal_map_month.astype(np.int64)
         return self._cal_map_month
 
     @property
     def tcalmap_day(self):
         if self._cal_map_day is None:
-            self._cal_map_day = pd.Series(data=np.arange(len(self.trade_cal)), index=self.trade_cal, dtype=int)
+            self._cal_map_day = pd.Series(data=np.arange(len(self.trade_cal)), index=self.trade_cal, dtype=np.int64)
         return self._cal_map_day
 
     def gen_keys_monthly(self, start_dt, end_dt, code, astype='E'):

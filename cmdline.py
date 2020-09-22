@@ -7,9 +7,8 @@ import pandas as pd
 import numpy as np
 from boost_tushare.utils.parallelize import parallelize
 
-from boost_tushare.api import *
 from boost_tushare import *
-from boost_tushare.xcbooster import XcTusBooster
+from boost_tushare.xupdater import *
 
 log = logbook.Logger('cli')
 
@@ -23,18 +22,11 @@ def progress_bar(cur, total):
 
 def cntus_update_basic():
     """
-
-    :param b_stock_day:
-    :param b_stock_min:
-    :param b_index_day:
-    :param b_index_min:
     :return:
     """
     log.info('Update basic information...(Trading Calendar, Asset info)')
-    tusbooster_init()
-    tusbooster_domain_update()
-    tusbooster_domain_load()
-    # tusbooster_updater_init()
+    updater = tusupdater_init()
+    updater.init_domain()
 
     # get_index_info(IOFLAG.READ_NETDB)
     # get_stock_info(IOFLAG.READ_NETDB)
@@ -47,17 +39,16 @@ def cntus_update_basic():
     end_date = pd.Timestamp.today().strftime('%Y%m%d')
 
     log.info('Downloading stocks suspend data: {}-{}'.format(start_date, end_date))
-    update_suspend_d(start_date, end_date)
+    updater.update_suspend_d(start_date, end_date)
 
     return
 
 
 def cntus_update_stock_day(start_date='20150101'):
-    tusbooster_init()
-    tusbooster_domain_load()
-    tusbooster_updater_init()
+    updater = tusupdater_init()
+    updater.init_domain()
 
-    df_stock = get_stock_info()
+    df_stock = updater.get_stock_info()
 
     def _fetch_day(symbols):
         results = {}
@@ -66,7 +57,7 @@ def cntus_update_stock_day(start_date='20150101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = update_price_daily(stk, t_start, t_end, astype)
+            results[stk] = updater.update_price_daily(stk, t_start, t_end, astype)
 
         return results
 
@@ -96,11 +87,10 @@ def cntus_update_stock_day(start_date='20150101'):
 
 
 def cntus_update_stock_day_ext(start_date='20150101'):
-    tusbooster_init()
-    tusbooster_domain_load()
-    tusbooster_updater_init()
+    updater = tusupdater_init()
+    updater.init_domain()
 
-    df_stock = get_stock_info()
+    df_stock = updater.get_stock_info()
 
     def _fetch_stock_ext(symbols):
         results = {}
@@ -110,17 +100,17 @@ def cntus_update_stock_day_ext(start_date='20150101'):
             t_end = ss['end_date']
 
             # Froce reload xdxr from net
-            get_stock_xdxr(stk, IOFLAG.READ_NETDB)
+            updater.get_stock_xdxr(stk, IOFLAG.READ_NETDB)
 
             # reader.update_stock_adjfactor(stk, t_start, t_end)
-            results[stk] = update_stock_dayinfo(stk, t_start, t_end)
+            results[stk] = updater.update_stock_dayinfo(stk, t_start, t_end)
 
         return results
 
     end_date = pd.Timestamp.today().strftime('%Y%m%d')
 
     # dummy read suspend_info
-    suspend_info = get_suspend_d(start_date, end_date)
+    # suspend_info = updater.get_suspend_d(start_date, end_date)
 
     all_symbols = []
     for k, stk in df_stock['ts_code'].items():
@@ -143,11 +133,10 @@ def cntus_update_stock_day_ext(start_date='20150101'):
 
 
 def cntus_update_index_day(start_date):
-    tusbooster_init()
-    tusbooster_domain_load()
-    tusbooster_updater_init()
+    updater = tusupdater_init()
+    updater.init_domain()
 
-    df_index = get_index_info()
+    df_index = updater.get_index_info()
 
     def _fetch_day(symbols):
         results = {}
@@ -156,7 +145,7 @@ def cntus_update_index_day(start_date):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = update_price_daily(stk, t_start, t_end, astype)
+            results[stk] = updater.update_price_daily(stk, t_start, t_end, astype)
 
         return results
 
@@ -180,11 +169,10 @@ def cntus_update_index_day(start_date):
 
 
 def cntus_update_stock_min(start_date='20190101'):
-    tusbooster_init()
-    tusbooster_domain_load()
-    tusbooster_updater_init()
+    updater = tusupdater_init()
+    updater.init_domain()
 
-    df_stock = get_stock_info()
+    df_stock = updater.get_stock_info()
 
     def _fetch_min(symbols):
         results = {}
@@ -193,7 +181,7 @@ def cntus_update_stock_min(start_date='20190101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = update_price_minute(stk, t_start, t_end, freq='5min', astype=astype)
+            results[stk] = updater.update_price_minute(stk, t_start, t_end, freq='5min', astype=astype)
 
         return results
 
@@ -222,11 +210,10 @@ def cntus_update_stock_min(start_date='20190101'):
 
 
 def cntus_update_index_min(start_date='20190101'):
-    tusbooster_init()
-    tusbooster_domain_load()
-    tusbooster_updater_init()
+    updater = tusupdater_init()
+    updater.init_domain()
 
-    df_index = get_index_info()
+    df_index = updater.get_index_info()
 
     def _fetch_min(symbols):
         results = {}
@@ -235,7 +222,7 @@ def cntus_update_index_min(start_date='20190101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = update_price_minute(stk, t_start, t_end, freq='1min', astype=astype)
+            results[stk] = updater.update_price_minute(stk, t_start, t_end, freq='1min', astype=astype)
 
         return results
 
@@ -261,6 +248,7 @@ def cntus_update_index_min(start_date='20190101'):
     return
 
 
+####################################################################
 def cntus_check_stock_day(start_date='20150101'):
     tusbooster_init()
 

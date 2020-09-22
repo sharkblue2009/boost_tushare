@@ -11,10 +11,17 @@ from enum import IntEnum
 import numpy as np
 import pandas as pd
 from logbook import Logger
+from enum import IntEnum
 
 log = Logger('xcdb')
 
 DBS_OPENED = {}
+
+
+class DBTYPE(IntEnum):
+    DB_LEVELDB = 0,
+    DB_LMDB = 1,
+    DB_REDIS = 2,
 
 
 def force_bytes(s):

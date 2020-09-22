@@ -3,17 +3,21 @@
 """
 from .apiwrapper import api_call
 from .proloader import TusNetLoader
-from .schema import *
+from .layout import *
 from .utils.xcutils import *
 from .xcdb.xcdb import *
+from .domain import XcDomain
 
 
-class XcReaderFinance(object):
+class XcReaderFinance(XcDomain):
     """
     Finance information loader
     """
     master_db = None
     netloader: TusNetLoader = None
+
+    def __init__(self):
+        super(XcReaderFinance, self).__init__()
 
     @api_call
     def get_income(self, code, period, flag=IOFLAG.READ_XC):

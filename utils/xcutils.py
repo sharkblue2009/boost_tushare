@@ -54,8 +54,9 @@ def dt64_to_strdt(dt):
     :param dt:
     :return:
     """
-    dd = pd.Timestamp(dt)
-    dtkey = dd.strftime(DATE_FORMAT)
+    # dd = pd.Timestamp(dt)
+    # dtkey = dd.strftime(DATE_FORMAT)
+    dtkey = np.datetime_as_string(dt, unit='D')
     return dtkey
 
 
@@ -152,83 +153,6 @@ def QUARTER_END(date, trade_days=None):
     if mday.year == dd.year and _quater_map[mday.month] == _quater_map[dd.month]:
         return mday
     return None
-
-
-# def gen_keys_monthly(start_dt, end_dt, asset_life, trade_cal):
-#     """
-#     根据当前交易品种的有效交易日历， 产生月度keys
-#     :param start_dt:
-#     :param end_dt:
-#     :param asset_life: tuple(born_date, dead_date)
-#     :param trade_cal:
-#     :return:
-#     """
-#     if asset_life is not None:
-#         l_ss, l_ee = asset_life
-#         tstart = max([l_ss, start_dt])
-#         tend = min([l_ee, end_dt])
-#     else:
-#         tstart = start_dt
-#         tend = end_dt
-#
-#     if trade_cal is not None:
-#         tend = min(tend, trade_cal[-1])
-#
-#     m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
-#     m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
-#     key_index = pd.date_range(m_start, m_end, freq='MS')
-#     key_index = key_index.values.astype('M8[D]')
-#     return key_index
-#
-#
-# def gen_keys_daily(start_dt, end_dt, asset_life, trade_cal):
-#     """
-#     根据当前交易品种的有效交易日历， 产生日度keys
-#     :param start_dt:
-#     :param end_dt:
-#     :param asset_life: tuple(born_date, dead_date)
-#     :param trade_cal: trade_cal index
-#     :return:
-#     """
-#     if asset_life is not None:
-#         l_ss, l_ee = asset_life
-#         tstart = max([l_ss, start_dt])
-#         tend = min([l_ee, end_dt])
-#     else:
-#         tstart = start_dt
-#         tend = end_dt
-#
-#     if trade_cal is None:
-#         key_index = pd.date_range(tstart, tend, freq='D')
-#     else:
-#         key_index = trade_cal[(trade_cal >= tstart) & (trade_cal <= tend)]
-#     return key_index
-#
-#
-# def gen_keys_quarterly(start_dt, end_dt, asset_life=None, trade_cal=None):
-#     """
-#
-#     :param start_dt:
-#     :param end_dt:
-#     :param asset_life: tuple(born_date, dead_date)
-#     :param trade_cal:
-#     :return:
-#     """
-#
-#     limit_start, limit_end = asset_life
-#
-#     # 当前交易品种的有效交易日历
-#     tstart = max([limit_start, start_dt])
-#     tend = min([limit_end, end_dt])
-#
-#     if trade_cal is not None:
-#         tend = min(tend, trade_cal[-1])
-#
-#     m_start = pd.Timestamp(year=tstart.year, month=1, day=1)
-#     m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
-#
-#     key_index = pd.date_range(m_start, m_end, freq='QS')
-#     return key_index
 
 
 def session_day_to_min_tus(day_sess, freq='1min', market_open=True):

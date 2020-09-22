@@ -8,60 +8,92 @@ from .domain import XcDomain
 
 from .apiwrapper import api_call
 from .proloader import TusNetLoader
-from .schema import *
+from .layout import *
 from .utils.memoize import lazyval
 from .utils.xcutils import *
 from .xcdb.xcdb import *
 
 
-class XcReaderBasic(object):
+class XcReaderBasic(XcDomain):
     """
     Basic Information
     """
     facc = None
-    domain: XcDomain = None
-    xctus_current_day = None
-    xctus_first_day = None
 
-    ##########################################################
-    # Reader API
-    ##########################################################
-    @api_call
-    def tusbooster_domain_update(self):
+    def __init__(self):
+        super(XcReaderBasic, self).__init__()
 
+    def init_domain(self):
+        """
+        load domain data from DB.
+        :return:
+        """
         db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
+        first_date = db.load(TusKeys.CAL_FIRST_DATE.value)
+        current_date = db.load(TusKeys.CAL_CURRENT_DATE.value)
+        db.commit()
+        if first_date is None or current_date is None:
+            self.update_domain()
 
+        print('DB_Domain calendar:{}, {}'.format(first_date, current_date))
+        self.xctus_first_day = first_date
+        self.xctus_last_day = current_date
+
+        db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_DTIDX_META)
+        self._cal_day = db.load(TusKeys.CAL_INDEX_DAY.value)
+        # db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_D_IDX_META)
+        self._cal_1min = db.load(TusKeys.CAL_INDEX_1MIN.value)
+        self._cal_5min = db.load(TusKeys.CAL_INDEX_5MIN.value)
+        db.commit()
+
+        info = self.get_index_info()
+        self.index_info = info.set_index('ts_code', drop=True)
+        info = self.get_stock_info()
+        self.stock_info = info.set_index('ts_code', drop=True)
+        info = self.get_fund_info()
+        self.fund_info = info.set_index('ts_code', drop=True)
+
+        # dummy read here to create the tcalmap, or it may fail when parallel thread case.
+        aa = self.tcalmap_day
+        bb = self.tcalmap_mon
+        return
+
+    def update_domain(self, force_mode=False):
+        """
+        update domain members
+        :param force_mode:
+        :return:
+        """
+        db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
         b_need_update = True
         first_date = db.load(TusKeys.CAL_FIRST_DATE.value)
         current_date = db.load(TusKeys.CAL_CURRENT_DATE.value)
-        del db
+        db.commit()
 
         if first_date is not None and current_date is not None:
-            if first_date == self.xctus_first_day and current_date == self.xctus_current_day:
+            if first_date == self.xctus_first_day and current_date == self.last_day:
                 b_need_update = False
 
-        if b_need_update:
+        if b_need_update or force_mode:
             print('Update calendar:{}, {}'.format(first_date, current_date))
-            db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
-            info = self.netloader.set_trade_cal()
-            db.metadata = CALENDAR_RAW_META
-            tcal = db.save(TusKeys.CAL_RAW.value, info)
+            tcal = self.get_trade_cal(IOFLAG.READ_NETDB)
 
-            tcal_day = pd.to_datetime(tcal.tolist(), format='%Y%m%d')
-            tcal_day = tcal_day[(self.xctus_first_day <= tcal_day) & (tcal_day <= self.xctus_current_day)]
-            _tcal_1min = session_day_to_min_tus(tcal_day, '1min', market_open=False)
-            _tcal_5min = session_day_to_min_tus(tcal_day, '5min', market_open=False)
+            tcday = pd.to_datetime(tcal.tolist(), format='%Y%m%d')
+            tcday = tcday[(self.xctus_first_day <= tcday) & (tcday <= self.last_day)]
+            tc1min = session_day_to_min_tus(tcday, '1min', market_open=False)
+            tc5min = session_day_to_min_tus(tcday, '5min', market_open=False)
 
-            db.metadata = CALENDAR_D_IDX_META
-            db.save(TusKeys.CAL_INDEX_DAY.value, tcal_day)
-            db.save(TusKeys.CAL_INDEX_1MIN.value, _tcal_1min)
-            db.save(TusKeys.CAL_INDEX_5MIN.value, _tcal_5min)
+            db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_DTIDX_META)
+            db.metadata = CALENDAR_DTIDX_META
+            db.save(TusKeys.CAL_INDEX_DAY.value, tcday)
+            db.save(TusKeys.CAL_INDEX_1MIN.value, tc1min)
+            db.save(TusKeys.CAL_INDEX_5MIN.value, tc5min)
 
             db.metadata = GENERAL_OBJ_META
             db.save(TusKeys.CAL_FIRST_DATE.value, self.xctus_first_day)
-            db.save(TusKeys.CAL_CURRENT_DATE.value, self.xctus_current_day)
+            db.save(TusKeys.CAL_CURRENT_DATE.value, self.last_day)
+            db.commit()
             print('Done')
-            del db
 
         print('Update asset info...')
         self.get_index_info(IOFLAG.READ_NETDB)
@@ -70,47 +102,32 @@ class XcReaderBasic(object):
         self.get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
         self.get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
         print('Done')
-
         return
 
+    ##########################################################
+    # Reader API
+    ##########################################################
+
     @api_call
-    def tusbooster_domain_load(self):
-        """
-        load domain data from DB.
-        :return:
-        """
-        domain = self.domain
-        db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
-        first_date = db.load(TusKeys.CAL_FIRST_DATE.value)
-        current_date = db.load(TusKeys.CAL_CURRENT_DATE.value)
-        print('DB_Domain calendar:{}, {}'.format(first_date, current_date))
-        domain.xctus_first_day = first_date
-        domain.xctus_current_day = current_date
-        del db
+    def get_trade_cal(self, flag=IOFLAG.READ_XC):
 
-        db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_D_IDX_META)
-        domain._trade_cal_day = db.load(TusKeys.CAL_INDEX_DAY.value)
-        # db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_D_IDX_META)
-        domain._trade_cal_1min = db.load(TusKeys.CAL_INDEX_1MIN.value)
-        domain._trade_cal_5min = db.load(TusKeys.CAL_INDEX_5MIN.value)
-        del db
+        db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_RAW_META)
 
-        info = self.get_index_info()
-        domain.index_info = info.set_index('ts_code', drop=True)
+        kk = TusKeys.CAL_RAW.value
 
-        info = self.get_stock_info()
-        domain.stock_info = info.set_index('ts_code', drop=True)
-
-        info = self.get_fund_info()
-        domain.fund_info = info.set_index('ts_code', drop=True)
-
-        # domain.suspend_info = self.get_suspend_d(self.xctus_first_day, self.xctus_current_day)
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
+            val = db.load(kk)
+            if val is not None:
+                return val
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
+            info = self.netloader.set_trade_cal()
+            return db.save(kk, info)
         return
 
     @api_call
     def get_index_info(self, flag=IOFLAG.READ_XC):
         """
-
+        get index information
         :return:
         """
         db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
@@ -171,7 +188,7 @@ class XcReaderBasic(object):
         """
         # 找到所处月份的第一个交易日
         trdt = pd.Timestamp(date)
-        mmidx = self.domain.gen_dindex_monthly(MONTH_START(trdt), MONTH_END(trdt))
+        mmidx = self.gen_dindex_monthly(MONTH_START(trdt), MONTH_END(trdt))
         if len(mmidx) == 0:
             return
 
@@ -245,8 +262,7 @@ class XcReaderBasic(object):
         :param code:
         :return:
         """
-        domain = self.domain
-        mmdts = domain.gen_keys_daily(start, end, None, None)
+        mmdts = self.gen_keys_daily(start, end, None, None)
         if mmdts is None:
             return
 

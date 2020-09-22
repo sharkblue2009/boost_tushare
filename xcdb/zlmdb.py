@@ -45,14 +45,15 @@ class XcLMDB(XCacheDB):
 
     @staticmethod
     def _get_sdb(master_db, sdb_path: str):
-        cur_db = master_db.open_db(force_bytes(sdb_path))
+        cur_db = master_db.open_db(force_bytes(sdb_path), create=True)
         return cur_db
 
     def get_sdb(self, sdb_path: str):
         try:
             # log.info('>>SDB>>{}'.format(sdb_path))
             sdb = self._get_sdb(self.env, sdb_path)
-        except:
+        except Exception as e:
+            print(e)
             print('sdb_path not exist: {}'.format(sdb_path))
             raise ValueError('create sdb error')
 

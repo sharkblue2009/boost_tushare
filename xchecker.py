@@ -1,12 +1,15 @@
 from .apiwrapper import api_call
-from .schema import *
+from .layout import *
 from .utils.xcutils import *
 from .xcdb.xcdb import *
+from .domain import XcDomain
 
 
-class XcCheckerPrice(object):
+class XcDBChecker(XcDomain):
     suspend_info = None
-    trade_cal: pd.DatetimeIndex = None
+
+    def __init__(self):
+        super(XcDBChecker, self).__init__()
 
     @api_call
     def check_price_daily(self, code, start, end, astype, flag=IOFLAG.ERASE_INVALID):

@@ -4,14 +4,14 @@
 
 from .apiwrapper import api_call
 from .proloader import TusNetLoader
-from .schema import *
+from .layout import *
 from .utils.xcutils import *
 # from .utils.memoize import lazyval
 from .xcdb.xcdb import *
 from .domain import XcDomain
 
 
-class XcReaderPrice(object):
+class XcReaderPrice(XcDomain):
     """
     行情数据
     """
@@ -19,6 +19,9 @@ class XcReaderPrice(object):
     domain: XcDomain = None
 
     netloader: TusNetLoader = None
+
+    def __init__(self):
+        super(XcReaderPrice, self).__init__()
 
     @api_call
     def get_price_daily(self, code, start: str, end: str, astype=None, flag=IOFLAG.READ_XC):
@@ -37,11 +40,10 @@ class XcReaderPrice(object):
         :param end:
         :return:
         """
-        domain = self.domain
         if astype is None:
-            astype = domain.asset_type(code)
+            astype = self.asset_type(code)
 
-        mmdts = domain.gen_keys_monthly(start, end, code, astype)
+        mmdts = self.gen_keys_monthly(start, end, code, astype)
         if mmdts is None:
             return
 
@@ -56,7 +58,7 @@ class XcReaderPrice(object):
                     continue
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_price_daily(code, MONTH_START(dd), MONTH_END(dd), astype)
-                dayindex = domain.gen_dindex_monthly(dd, dd)
+                dayindex = self.gen_dindex_monthly(dd, dd)
                 if ii is None:
                     ii = pd.DataFrame(index=dayindex, columns=EQUITY_DAILY_PRICE_META['columns'], dtype='f8')
                 else:
@@ -69,7 +71,7 @@ class XcReaderPrice(object):
         out = np.vstack(out)
         all_out = pd.DataFrame(data=out, columns=EQUITY_DAILY_PRICE_META['columns'])
 
-        alldays = domain.gen_dindex_monthly(mmdts[0], mmdts[-1])
+        alldays = self.gen_dindex_monthly(mmdts[0], mmdts[-1])
         all_out = all_out.set_index(alldays)
         # all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
@@ -99,8 +101,7 @@ class XcReaderPrice(object):
         """
         if freq not in XTUS_FREQS:
             return None
-        domain = self.domain
-        mmdts = domain.gen_keys_daily(start, end, code, 'E')
+        mmdts = self.gen_keys_daily(start, end, code, 'E')
         if mmdts is None:
             return
 
@@ -115,7 +116,7 @@ class XcReaderPrice(object):
                     continue
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_price_minute(code, dd, dd, freq, astype)
-                minindex = domain.gen_mindex_daily(dd, dd, freq)
+                minindex = self.gen_mindex_daily(dd, dd, freq)
                 if ii is None:
                     ii = pd.DataFrame(index=minindex, columns=EQUITY_MINUTE_PRICE_META['columns'], dtype='f8')
                 else:
@@ -131,7 +132,7 @@ class XcReaderPrice(object):
         out = np.vstack(out)
 
         all_out = pd.DataFrame(data=out, columns=EQUITY_MINUTE_PRICE_META['columns'])
-        allmins = domain.gen_mindex_daily(mmdts[0], mmdts[-1], freq)
+        allmins = self.gen_mindex_daily(mmdts[0], mmdts[-1], freq)
         all_out = all_out.set_index(allmins)
 
         # if resample:
@@ -159,8 +160,7 @@ class XcReaderPrice(object):
         :param end:
         :return:
         """
-        domain = self.domain
-        mmdts = domain.gen_keys_monthly(start, end, code, 'E')
+        mmdts = self.gen_keys_monthly(start, end, code, 'E')
         if mmdts is None:
             return
 
@@ -175,7 +175,7 @@ class XcReaderPrice(object):
                     continue
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_stock_daily_info(code, MONTH_START(dd), MONTH_END(dd))
-                dayindex = domain.gen_dindex_monthly(dd, dd)
+                dayindex = self.gen_dindex_monthly(dd, dd)
                 if ii is None:
                     ii = pd.DataFrame(index=dayindex, columns=STOCK_DAILY_INFO_META['columns'], dtype='f8')
                 else:
@@ -188,7 +188,7 @@ class XcReaderPrice(object):
         out = np.concatenate(out)
 
         all_out = pd.DataFrame(data=out, columns=STOCK_DAILY_INFO_META['columns'])
-        alldays = domain.gen_dindex_monthly(mmdts[0], mmdts[-1])
+        alldays = self.gen_dindex_monthly(mmdts[0], mmdts[-1])
         all_out = all_out.set_index(alldays)
         # all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
@@ -206,8 +206,7 @@ class XcReaderPrice(object):
         :param end:
         :return:
         """
-        domain = self.domain
-        mmdts = domain.gen_keys_monthly(start, end, code, 'E')
+        mmdts = self.gen_keys_monthly(start, end, code, 'E')
         if mmdts is None:
             return
 
@@ -222,7 +221,7 @@ class XcReaderPrice(object):
                     continue
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_stock_adjfactor(code, MONTH_START(dd), MONTH_END(dd))
-                dayindex = domain.gen_dindex_monthly(dd, dd)
+                dayindex = self.gen_dindex_monthly(dd, dd)
                 if ii is None:
                     ii = pd.DataFrame(index=dayindex, columns=STOCK_ADJFACTOR_META['columns'], dtype='f8')
                 else:
@@ -235,7 +234,7 @@ class XcReaderPrice(object):
         out = np.concatenate(out)
         all_out = pd.DataFrame(data=out, columns=STOCK_ADJFACTOR_META['columns'])
 
-        alldays = domain.gen_dindex_monthly(mmdts[0], mmdts[-1])
+        alldays = self.gen_dindex_monthly(mmdts[0], mmdts[-1])
         all_out = all_out.set_index(alldays)
         # all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
