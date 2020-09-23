@@ -199,8 +199,10 @@ class XcNLPrice(object):
                 # Note : Data from tushare is in reverse order
                 for k in range(len(data) - 1, 0, -nbars):
                     v = data
-                    assert((v.loc[k - 1, 'pre_close'] == v.loc[k, 'close']) &
-                           np.isnan(v.loc[k, 'pre_close']))  # open KBar check.
+                    if True:
+                        assert (v.loc[k - 1, 'pre_close'] == v.loc[k, 'close'])  # open KBar check.
+                        tt = pd.Timestamp(v.trade_time[k])
+                        assert ((tt.hour == 9) & (tt.minute == 30))
 
                     v.loc[k - 1, 'open'] = v.loc[k, 'open']  # Open
                     v.loc[k - 1, 'high'] = v.loc[(k - 1):(k + 1), 'high'].max()  # High

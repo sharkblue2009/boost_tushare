@@ -1,12 +1,14 @@
 from .utils.xcutils import *
 from logbook import Logger
+
 log = Logger('xtus')
+
 
 class XcDomain(object):
     xctus_last_day = None
     xctus_first_day = None
 
-    _cal_raw = None    # Raw trading calendar from Tushare. string format
+    _cal_raw = None  # Raw trading calendar from Tushare. string format
     _cal_day = None
     _cal_1min = None
     _cal_5min = None
@@ -90,14 +92,15 @@ class XcDomain(object):
         start_dt = strdt_to_dt64(start_dt)
         end_dt = strdt_to_dt64(end_dt)
 
-        asset_life = self.asset_lifetime(code, astype)
-        if asset_life is not None:
-            l_ss, l_ee = asset_life
-            tstart = max([l_ss, start_dt])
-            tend = min([l_ee, end_dt])
-        else:
-            tstart = start_dt
-            tend = end_dt
+        tstart = start_dt
+        tend = end_dt
+
+        if code is not None:
+            asset_life = self.asset_lifetime(code, astype)
+            if asset_life is not None:
+                l_ss, l_ee = asset_life
+                tstart = max([l_ss, start_dt])
+                tend = min([l_ee, end_dt])
 
         mm_index = self.tcalmap_mon.index.values
         mmdts = mm_index[(mm_index >= MONTH_START(tstart)) & (mm_index <= MONTH_END(tend))]
@@ -128,14 +131,15 @@ class XcDomain(object):
         start_dt = strdt_to_dt64(start_dt)
         end_dt = strdt_to_dt64(end_dt)
 
-        asset_life = self.asset_lifetime(code, astype)
-        if asset_life is not None:
-            l_ss, l_ee = asset_life
-            tstart = max([l_ss, start_dt])
-            tend = min([l_ee, end_dt])
-        else:
-            tstart = start_dt
-            tend = end_dt
+        tstart = start_dt
+        tend = end_dt
+
+        if code is not None:
+            asset_life = self.asset_lifetime(code, astype)
+            if asset_life is not None:
+                l_ss, l_ee = asset_life
+                tstart = max([l_ss, start_dt])
+                tend = min([l_ee, end_dt])
 
         tt_index = self.trade_cal
         ttdates = tt_index[(tt_index >= tstart) & (tt_index <= tend)]
@@ -157,7 +161,7 @@ class XcDomain(object):
         alldays = calmins[ssc1 * periods: (ssc2 + 1) * periods]
         return alldays
 
-    def gen_keys_quarterly(self, start_dt, end_dt, asset_life=None, trade_cal=None):
+    def gen_keys_quarterly(self, start_dt, end_dt, code=None, astype=None):
         """
 
         :param start_dt:
@@ -166,16 +170,20 @@ class XcDomain(object):
         :param trade_cal:
         :return:
         """
+        start_dt = strdt_to_dt64(start_dt)
+        end_dt = strdt_to_dt64(end_dt)
 
-        limit_start, limit_end = asset_life
+        tstart = start_dt
+        tend = end_dt
 
-        # 当前交易品种的有效交易日历
-        tstart = max([limit_start, start_dt])
-        tend = min([limit_end, end_dt])
+        if code is not None:
+            asset_life = self.asset_lifetime(code, astype)
+            if asset_life is not None:
+                l_ss, l_ee = asset_life
+                tstart = max([l_ss, start_dt])
+                tend = min([l_ee, end_dt])
 
-        if trade_cal is not None:
-            tend = min(tend, trade_cal[-1])
-
+        tstart, tend = pd.Timestamp(tstart), pd.Timestamp(tend)
         m_start = pd.Timestamp(year=tstart.year, month=1, day=1)
         m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
 
@@ -288,7 +296,7 @@ class XcDomain(object):
                         bvalid = True
 
             if not bvalid and susp_info is not None:
-                log.info('[!KDVMIN]-: {}-{}:: {}-{} '.format(code, dt, len(susp), vldlen))
+                log.info('[!KDVMIN]-: {}-{}:: {}-{} '.format(code, dt, vldlen))
 
         return bvalid
 
