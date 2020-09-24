@@ -26,7 +26,6 @@ def cntus_update_basic():
     """
     log.info('Update basic information...(Trading Calendar, Asset info)')
     updater = tusupdater_init()
-    updater.init_domain()
 
     # get_index_info(IOFLAG.READ_NETDB)
     # get_stock_info(IOFLAG.READ_NETDB)
@@ -46,7 +45,6 @@ def cntus_update_basic():
 
 def cntus_update_stock_day(start_date='20150101'):
     updater = tusupdater_init()
-    updater.init_domain()
 
     df_stock = updater.get_stock_info()
 
@@ -79,8 +77,8 @@ def cntus_update_stock_day(start_date='20150101'):
         progress_bar(idx, len(all_symbols))
         symbol_batch = all_symbols[idx:idx + batch_size]
 
-        # result = _fetch_day(symbol_batch)
-        result = parallelize(_fetch_day, workers=20, splitlen=3)(symbol_batch)
+        result = _fetch_day(symbol_batch)
+        # result = parallelize(_fetch_day, workers=20, splitlen=3)(symbol_batch)
         all_result.update(result)
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
@@ -88,7 +86,6 @@ def cntus_update_stock_day(start_date='20150101'):
 
 def cntus_update_stock_day_ext(start_date='20150101'):
     updater = tusupdater_init()
-    updater.init_domain()
 
     df_stock = updater.get_stock_info()
 
@@ -134,7 +131,6 @@ def cntus_update_stock_day_ext(start_date='20150101'):
 
 def cntus_update_index_day(start_date):
     updater = tusupdater_init()
-    updater.init_domain()
 
     df_index = updater.get_index_info()
 
@@ -170,7 +166,6 @@ def cntus_update_index_day(start_date):
 
 def cntus_update_stock_min(start_date='20190101'):
     updater = tusupdater_init()
-    updater.init_domain()
 
     df_stock = updater.get_stock_info()
 
@@ -211,7 +206,6 @@ def cntus_update_stock_min(start_date='20190101'):
 
 def cntus_update_index_min(start_date='20190101'):
     updater = tusupdater_init()
-    updater.init_domain()
 
     df_index = updater.get_index_info()
 

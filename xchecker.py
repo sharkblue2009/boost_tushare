@@ -11,7 +11,6 @@ class XcDBChecker(XcDomain):
     def __init__(self):
         super(XcDBChecker, self).__init__()
 
-    @api_call
     def check_price_daily(self, code, start, end, astype, flag=IOFLAG.ERASE_INVALID):
         tstart = pd.Timestamp(start)
         tend = pd.Timestamp(end)
@@ -36,7 +35,6 @@ class XcDBChecker(XcDomain):
 
         return
 
-    @api_call
     def check_price_minute(self, code, start, end, freq='1min', astype=None, flag=IOFLAG.ERASE_INVALID):
         if freq not in XTUS_FREQS:
             return None
@@ -66,7 +64,6 @@ class XcDBChecker(XcDomain):
                         db.remove(dtkey)
         return
 
-    @api_call
     def check_stock_dayinfo(self, code, start, end, flag=IOFLAG.ERASE_INVALID):
         """
 
@@ -98,7 +95,6 @@ class XcDBChecker(XcDomain):
                         db.remove(dtkey)
         return
 
-    @api_call
     def check_stock_adjfactor(self, code, start, end, flag=IOFLAG.ERASE_INVALID):
         """
 

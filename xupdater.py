@@ -100,7 +100,8 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
         :param code:
         :param start:
         :param end:
-        :param flag:
+        :param astype:
+        :param rollback:
         :return:
         """
         if astype is None:
@@ -137,13 +138,14 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 break
             dts_upd = mmdts[tstart: tend + 1]
             data = self.netloader.set_price_daily(code, MONTH_START(dts_upd[0]), MONTH_END(dts_upd[-1]), astype)
+            if data is None:
+                continue
+            data = data.set_index('trade_date', drop=True)
+            data.index = pd.to_datetime(data.index, format=DATE_FORMAT)
             for tt in dts_upd:
                 dtkey = dt64_to_strdt(tt)
-                xxd = data.loc[data['trade_date'].map(lambda x: x[:6] == dtkey[:6]), :]
-                xxd = xxd.set_index('trade_date', drop=True)
-                xxd.index = pd.to_datetime(xxd.index, format=DATE_FORMAT)
                 dayindex = self.gen_dindex_monthly(tt, tt)
-                xxd = xxd.reindex(index=dayindex)
+                xxd = data.reindex(index=dayindex)
                 db.save(dtkey, xxd)
 
         return count
@@ -159,13 +161,13 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
         :return:
         """
         if freq not in XTUS_FREQS:
-            return None
+            return 0
 
         if astype is None:
             astype = self.asset_type(code)
         mmdts = self.gen_keys_daily(start, end, code, astype)
         if mmdts is None:
-            return
+            return 0
 
         bvalid = np.full((len(mmdts),), True, dtype=np.bool)
         db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq), EQUITY_MINUTE_PRICE_META)
@@ -196,13 +198,12 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
             data = self.netloader.set_price_minute(code, dts_upd[0], dts_upd[-1], freq)
             if data is None:
                 continue
+            data = data.set_index('trade_time', drop=True)
+            data.index = pd.to_datetime(data.index, format=DATETIME_FORMAT)
             for tt in dts_upd:
                 dtkey = dt64_to_strdt(tt)
-                xxd = data.loc[data['trade_time'].map(lambda x: x[:8] == dtkey[:8]), :]
-                xxd = xxd.set_index('trade_time', drop=True)
-                xxd.index = pd.to_datetime(xxd.index, format=DATETIME_FORMAT)
                 minindex = self.gen_mindex_daily(tt, tt, freq)
-                xxd = xxd.reindex(index=minindex)
+                xxd = data.reindex(index=minindex)
                 if (xxd.volume == 0.0).all():
                     # 如果全天无交易，vol == 0, 则清空df.
                     xxd.loc[:, :] = np.nan
@@ -248,13 +249,14 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 break
             dts_upd = mmdts[tstart: tend + 1]
             data = self.netloader.set_stock_adjfactor(code, MONTH_START(dts_upd[0]), MONTH_END(dts_upd[-1]))
+            if data is None:
+                continue
+            data = data.set_index('trade_date', drop=True)
+            data.index = pd.to_datetime(data.index, format=DATE_FORMAT)
             for tt in dts_upd:
                 dtkey = dt64_to_strdt(tt)
-                xxd = data.loc[data['trade_date'].map(lambda x: x[:6] == dtkey[:6]), :]
-                xxd = xxd.set_index('trade_date', drop=True)
-                xxd.index = pd.to_datetime(xxd.index, format=DATE_FORMAT)
                 dayindex = self.gen_dindex_monthly(tt, tt)
-                xxd = xxd.reindex(index=dayindex)
+                xxd = data.reindex(index=dayindex)
                 db.save(dtkey, xxd)
         return count
 
@@ -296,13 +298,14 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 break
             dts_upd = mmdts[tstart: tend + 1]
             data = self.netloader.set_stock_daily_info(code, MONTH_START(dts_upd[0]), MONTH_END(dts_upd[-1]))
+            if data is None:
+                continue
+            data = data.set_index('trade_date', drop=True)
+            data.index = pd.to_datetime(data.index, format=DATE_FORMAT)
             for tt in dts_upd:
                 dtkey = dt64_to_strdt(tt)
-                xxd = data.loc[data['trade_date'].map(lambda x: x[:6] == dtkey[:6]), :]
-                xxd = xxd.set_index('trade_date', drop=True)
-                xxd.index = pd.to_datetime(xxd.index, format=DATE_FORMAT)
                 dayindex = self.gen_dindex_monthly(tt, tt)
-                xxd = xxd.reindex(index=dayindex)
+                xxd = data.reindex(index=dayindex)
                 db.save(dtkey, xxd)
         return count
 
@@ -314,4 +317,5 @@ def tusupdater_init() -> XcDBUpdater:
     global g_updater
     if g_updater is None:
         g_updater = XcDBUpdater()
+        g_updater.init_domain()
     return g_updater

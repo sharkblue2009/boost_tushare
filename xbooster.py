@@ -72,5 +72,6 @@ def tusbooster_init() -> XcTusBooster:
     global g_booster
     if g_booster is None:
         g_booster = XcTusBooster()
+        g_booster.init_domain()
         set_algo_instance(g_booster)
     return g_booster

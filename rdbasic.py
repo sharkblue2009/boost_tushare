@@ -82,7 +82,7 @@ class XcReaderBasic(XcDomain):
             log.info('Update calendar:{}, {}'.format(first_date, current_date))
             tcal = self.get_trade_cal(IOFLAG.READ_NETDB)
 
-            tcday = pd.to_datetime(tcal.tolist(), format='%Y%m%d')
+            tcday = pd.to_datetime(tcal.tolist(), format='%Y%m%d').sort_values(ascending=True)
             tcday = tcday[(self.xctus_first_day <= tcday) & (tcday <= self.xctus_last_day)]
             tc1min = session_day_to_min_tus(tcday, '1min', market_open=False)
             tc5min = session_day_to_min_tus(tcday, '5min', market_open=False)

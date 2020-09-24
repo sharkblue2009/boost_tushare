@@ -69,7 +69,8 @@ class XcLMDBAccessor(XcAccessor):
     Note: read-write transactions may be nested.
         write transition begin-commit block can not insert other transition without nesting.
 
-    Lmdb Txn begin and commit need to be paired. so every API called Accessor [Init] must call [DEL] before next [Init].
+    Lmdb Txn begin and commit need to be paired. so every API called Accessor [Init] must call [DEL/Commit]
+                before next [Init].
 
     db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
     ...

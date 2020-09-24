@@ -21,10 +21,14 @@ class XcDomain(object):
     suspend_info = None
 
     def __init__(self):
-        log.info('Domain init...')
+        log.info('Domain Init...')
 
     @property
     def trade_cal_raw(self):
+        """
+        Trading calendar, raw format, "%Y%m%d"
+        :return:
+        """
         return self._cal_raw
 
     @trade_cal_raw.setter
@@ -37,7 +41,7 @@ class XcDomain(object):
         self._cal_map_day = None
 
     @property
-    def trade_cal(self):
+    def trade_cal(self) -> pd.DatetimeIndex:
         """
         当前有效的交易日历
         :return:
@@ -45,11 +49,11 @@ class XcDomain(object):
         return self._cal_day
 
     @property
-    def trade_cal_1min(self):
+    def trade_cal_1min(self) -> pd.DatetimeIndex:
         return self._cal_1min
 
     @property
-    def trade_cal_5min(self):
+    def trade_cal_5min(self) -> pd.DatetimeIndex:
         return self._cal_5min
 
     def freq_to_cal(self, freq):
@@ -60,7 +64,7 @@ class XcDomain(object):
         return None
 
     @property
-    def tcalmap_mon(self):
+    def tcalmap_mon(self) -> pd.DataFrame:
         if self._cal_map_month is None:
             tstart = self.xctus_first_day
             tend = self.xctus_last_day
@@ -77,7 +81,7 @@ class XcDomain(object):
         return self._cal_map_month
 
     @property
-    def tcalmap_day(self):
+    def tcalmap_day(self) -> pd.Series:
         if self._cal_map_day is None:
             self._cal_map_day = pd.Series(data=np.arange(len(self.trade_cal)), index=self.trade_cal, dtype=np.int64)
         return self._cal_map_day
@@ -233,7 +237,7 @@ class XcDomain(object):
         monthly key with daily data. use suspend information to check if the data is integrate
         :param dt: date keys
         :param dtval:  data values, 1d ndarray, [volume]
-        :param trade_days:
+        :param code:
         :return:
         """
         if dtval is None:
@@ -265,6 +269,7 @@ class XcDomain(object):
         :param dt: date keys
         :param dtval:  data values, 1d-ndarray
         :param freq:
+        :param code:
         :return:
         """
         if dtval is None:
@@ -296,7 +301,7 @@ class XcDomain(object):
                         bvalid = True
 
             if not bvalid and susp_info is not None:
-                log.info('[!KDVMIN]-: {}-{}:: {}-{} '.format(code, dt, vldlen))
+                log.info('[!KDVMIN]-: {}:: {}-{} '.format(code, dt, vldlen))
 
         return bvalid
 

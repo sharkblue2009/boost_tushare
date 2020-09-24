@@ -192,7 +192,8 @@ class XcNLPrice(object):
 
             nbars = XTUS_FREQ_BARS[freq] + 1
             if len(data) % nbars != 0:
-                log.error('min kbar length incorrect: {}-{}'.format(len(data), nbars))
+                log.error('min kbar length incorrect: {}, {}-{}, {}-{}'.format(code, start, end, len(data), nbars))
+                return None
 
             if merge_first:
                 # Handle the first row of every day. (the Kbar at 9:30)
