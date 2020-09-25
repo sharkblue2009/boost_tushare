@@ -39,9 +39,12 @@ class XcLMDB(XCacheDB):
         self.close()
 
     def show(self):
-        print(self.env.info())
-        # print(self.env.stat())
-        # print(self.env.max_key_size())
+        info = self.env.info()
+        log.info('DB Size is: {}MB'.format(info['map_size']//0x100000))
+        stat = self.env.stat()
+        log.info(stat)
+        # info = self.env.max_key_size()
+        # log.info(info)
 
     @staticmethod
     def _get_sdb(master_db, sdb_path: str):

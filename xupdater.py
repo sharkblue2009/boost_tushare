@@ -147,7 +147,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 dayindex = self.gen_dindex_monthly(tt, tt)
                 xxd = data.reindex(index=dayindex)
                 db.save(dtkey, xxd)
-
+        db.commit()
         return count
 
     def update_price_minute(self, code, start, end, freq='1min', astype='E', rollback=10):
@@ -184,8 +184,8 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
 
         count = np.sum(~bvalid)
         db.commit()
-        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq), EQUITY_MINUTE_PRICE_META)
 
+        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq), EQUITY_MINUTE_PRICE_META)
         # 每次最大获取8000条记录
         cc = {'1min': 1, '5min': 5, '15min': 15, '30min': 30, '60min': 60}
         max_units = 6000 // (240 // cc[freq] + 1)
@@ -209,6 +209,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                     xxd.loc[:, :] = np.nan
                 db.save(dtkey, xxd)
 
+        db.commit()
         return count
 
     def update_stock_adjfactor(self, code, start, end, rollback=3):
@@ -238,8 +239,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
 
         count = np.sum(~bvalid)
         db.commit()
-        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code),
-                       STOCK_ADJFACTOR_META)
+        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code),                       STOCK_ADJFACTOR_META)
         # 每次最大获取5000条记录
         max_units = 4000 // 23
         need_update = nadata_iter(bvalid, max_units)
@@ -258,6 +258,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 dayindex = self.gen_dindex_monthly(tt, tt)
                 xxd = data.reindex(index=dayindex)
                 db.save(dtkey, xxd)
+        db.commit()
         return count
 
     def update_stock_dayinfo(self, code, start, end, rollback=3):
@@ -307,6 +308,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 dayindex = self.gen_dindex_monthly(tt, tt)
                 xxd = data.reindex(index=dayindex)
                 db.save(dtkey, xxd)
+        db.commit()
         return count
 
 

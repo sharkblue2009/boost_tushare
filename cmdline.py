@@ -391,6 +391,59 @@ def check_daily(start, end):
     click.echo('done')
 
 
+@click.command()
+@click.option("--days", default=0, )
+def tsshow(days):
+    """"""
+    netreader = netloader_init()
+    today = pd.Timestamp.today()
+    if days > 0:
+        today = today - pd.Timedelta(days=days)
+    today = today.strftime(DATE_FORMAT)
+
+    print('Check tushare data status: {}'.format(today))
+    print('-' * 50)
+    df = netreader.set_price_daily('000001.SH', today, today, astype='I')
+    if df.empty:
+        print('Daily data unavailable')
+    else:
+        print(df)
+        print('Daily data OK')
+
+    print('-' * 50)
+    df = netreader.set_stock_daily_info('000001.SZ', today, today)
+    if df.empty:
+        print('DailyInfo unavailable')
+    else:
+        print(df)
+        print('DailyInfo OK')
+
+    print('-' * 50)
+    df = netreader.set_stock_bakdaily('000001.SZ', today, today)
+    if df.empty:
+        print('BakDailyInfo unavailable')
+    else:
+        print(df)
+        print('BakDailyInfo OK')
+
+    print('-' * 50)
+    df = netreader.set_stock_moneyflow('000001.SZ', today, today)
+    if df.empty:
+        print('Moneyflow unavailable')
+    else:
+        print(df)
+        print('Moneyflow OK')
+
+    print('-' * 50)
+    df = netreader.set_price_minute('000001.SH', today, today, freq='5min', astype='I')
+    if df.empty:
+        print('Minute unavailable')
+    else:
+        print(df.iloc[-3:])
+        print('Minute OK')
+    print('-' * 50)
+
+
 first.add_command(update_basic)
 first.add_command(update_daily)
 first.add_command(update_daily_ext)
@@ -398,6 +451,7 @@ first.add_command(update_minute)
 first.add_command(update_index_daily)
 first.add_command(update_index_minute)
 first.add_command(check_daily)
+first.add_command(tsshow)
 
 if __name__ == "__main__":
     import logbook, sys

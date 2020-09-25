@@ -144,6 +144,7 @@ class XcNLBasic(object):
 class XcNLPrice(object):
     pro_api = None
     master_db = None
+    ts_token = None
 
     def set_price_daily(self, code, start, end, astype='E'):
         """
@@ -192,6 +193,10 @@ class XcNLPrice(object):
 
             nbars = XTUS_FREQ_BARS[freq] + 1
             if len(data) % nbars != 0:
+                """
+                 002478.SZ, 2020-07-20 00:00:00-2020-09-24 00:00:00, 2372-49
+                 002481.SZ, 2020-07-20 00:00:00-2020-09-24 00:00:00, 2381-49
+                """
                 log.error('min kbar length incorrect: {}, {}-{}, {}-{}'.format(code, start, end, len(data), nbars))
                 return None
 
@@ -201,7 +206,8 @@ class XcNLPrice(object):
                 for k in range(len(data) - 1, 0, -nbars):
                     v = data
                     if True:
-                        assert (v.loc[k - 1, 'pre_close'] == v.loc[k, 'close'])  # open KBar check.
+                        # open KBar check.
+                        # assert (v.loc[k - 1, 'pre_close'] == v.loc[k, 'close'])  # Only work for Stocks
                         tt = pd.Timestamp(v.trade_time[k])
                         assert ((tt.hour == 9) & (tt.minute == 30))
 
@@ -255,6 +261,58 @@ class XcNLPrice(object):
         self.ts_token.block_consume(1)
         data = self.pro_api.adj_factor(ts_code=code, start_date=start_raw, end_date=end_raw,
                                        fields=fcols + ['trade_date'])
+
+        return data
+
+    def set_stock_moneyflow(self, code, start, end):
+        """
+        :param code:
+        :param start:
+        :param end:
+        :return:
+        """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
+        # fcols = STOCK_ADJFACTOR_META['columns']
+        start_raw = start.strftime(DATE_FORMAT)
+        end_raw = end.strftime(DATE_FORMAT)
+        self.ts_token.block_consume(1)
+        data = self.pro_api.moneyflow(ts_code=code, start_date=start_raw, end_date=end_raw)
+
+        return data
+
+    def set_stock_bakdaily(self, code, start, end):
+        """
+        :param code:
+        :param start:
+        :param end:
+        :return:
+        """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
+        start_raw = start.strftime(DATE_FORMAT)
+        end_raw = end.strftime(DATE_FORMAT)
+        self.ts_token.block_consume(1)
+        data = self.pro_api.bak_daily(ts_code=code, start_date=start_raw, end_date=end_raw)
+
+        return data
+
+    def set_stock_margindetail(self, code, start, end):
+        """
+        :param code:
+        :param start:
+        :param end:
+        :return:
+        """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
+        start_raw = start.strftime(DATE_FORMAT)
+        end_raw = end.strftime(DATE_FORMAT)
+        self.ts_token.block_consume(1)
+        data = self.pro_api.margin_detail(ts_code=code, start_date=start_raw, end_date=end_raw)
 
         return data
 
