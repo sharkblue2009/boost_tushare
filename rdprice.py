@@ -24,7 +24,9 @@ class XcReaderPrice(XcDomain):
         super(XcReaderPrice, self).__init__()
 
     @api_call
-    def get_price_daily(self, code, start: str, end: str, astype=None, flag=IOFLAG.READ_XC):
+    def get_price_daily(self, code, start: [str or pd.Timestamp or np.datetime64],
+                                    end: [str or pd.Timestamp or np.datetime64],
+                                    astype=None, flag=IOFLAG.READ_XC):
         """
         按月存取股票的日线数据
         1. 如当月停牌无交易，则存入空数据(或0)
@@ -36,7 +38,7 @@ class XcReaderPrice(XcDomain):
             1. 对于Index, Fund, 由于不存在停牌情况，因此价格数据的trade_date和当月的trade_calendar能匹配，则数据完整
             2. 对于股票，由于可能停牌，因此，月度价格数据的trade_date加上suspend_date, 和当月trade_calendar匹配，则数据完整
         :param code:
-        :param start:
+        :param start: start date: [str or pd.Timestamp or np.datetime64]
         :param end:
         :return:
         """
@@ -92,7 +94,7 @@ class XcReaderPrice(XcDomain):
             1. 股票， 要么数据完整241条数据，要么为空
             2. 指数和基金，无停牌，因此数据完整。
         :param code:
-        :param start:
+        :param start: start date: [str or pd.Timestamp or np.datetime64]
         :param end:
         :param freq:
         :param astype: asset type. 'E' for stock, 'I' for index, 'FD' for fund.

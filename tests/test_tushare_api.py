@@ -37,3 +37,6 @@ df = pro.daily_basic(ts_code='000785.SZ', start_date=start_date, end_date=end_da
                          'total_mv',
                          'circ_mv',
                      ])
+
+
+df = pro.dividend(ts_code='600848.SH')
