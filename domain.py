@@ -219,15 +219,19 @@ class XcDomain(object):
 
         if astype == 'E':
             info = self.stock_info
+            start_date = info.loc[code, 'list_date']
+            end_date = info.loc[code, 'delist_date']
         elif astype == 'I':
             info = self.index_info
+            start_date = info.loc[code, 'list_date']
+            end_date = info.loc[code, 'exp_date']
         elif astype == 'FD':
             info = self.fund_info
+            start_date = info.loc[code, 'list_date']
+            end_date = info.loc[code, 'delist_date']
         else:
             return
 
-        start_date = info.loc[code, 'start_date']
-        end_date = info.loc[code, 'end_date']
         start_date = strdt_to_dt64(start_date)
         end_date = strdt_to_dt64(end_date)
         return start_date, end_date
@@ -253,13 +257,15 @@ class XcDomain(object):
             susp = susp.loc[(susp['suspend_type'] == 'S') & (susp['suspend_timing'].isna()), :]
             expect_size = len(trdays) - len(susp)
 
-        if expect_size <= np.sum(~np.isnan(dtval)):
+        vldlen = np.sum(~np.isnan(dtval))
+        if expect_size == vldlen:
             # 股票存在停牌半天的情况，也会被计入suspend列表
             bvalid = True
         else:
             bvalid = False
-            if susp_info is not None:
-                log.info('[!KMVDAY]:{}-{}:: t{}-v{}-s{} '.format(code, dt, len(trdays), len(susp), len(dtval)))
+            if susp is not None:
+                if len(trdays) < (len(susp) + vldlen):
+                    log.info('[!KMVDAY]:{}-{}:: t{}-s{}-v{} '.format(code, dt, len(trdays), len(susp), vldlen))
 
         return bvalid
 
@@ -279,36 +285,45 @@ class XcDomain(object):
         susp_info = self.stock_suspend(code)
 
         bvalid = False
-        if True:  # dt in self.trade_cal:
-            vldlen = np.sum(~np.isnan(dtval))
-            if susp_info is None:
-                if vldlen == nbars:
-                    bvalid = True
-            else:
-                susp = susp_info.loc[(susp_info['suspend_type'] == 'S') & (susp_info.index == dt), :]
-                if not susp.empty:
-                    if susp['suspend_timing'].isna():  # .iloc[-1]
-                        # 当日全天停牌
-                        if vldlen == 0:
-                            bvalid = True
-                    else:
-                        # 部分时间停牌
-                        if nbars > vldlen > 0:
-                            bvalid = True
-                else:
-                    if 0 < vldlen <= nbars:
-                        # Fixme, 如果部分时间没有交易，vol=0, vldlen可能小于nbars
+        vldlen = np.sum(~np.isnan(dtval))
+        susp = None
+        if susp_info is None:
+            if vldlen == nbars:
+                bvalid = True
+        else:
+            susp = susp_info.loc[(susp_info['suspend_type'] == 'S') & (susp_info.index == dt), :]
+            if not susp.empty:
+                timing = susp['suspend_timing'].iloc[-1]
+                if timing is None:
+                    # 当日全天停牌
+                    if vldlen == 0:
                         bvalid = True
 
-            if not bvalid and susp_info is not None:
+                    if vldlen == nbars:
+                        # 部分品种，停牌数据有误。目前发现这种情况存在于退市/暂停上市的股票。
+                        # 例如： 300216.SZ， 300431.SZ，这时nbars=vldlen视为有效。
+                        bvalid = True
+                else:
+                    # 部分时间停牌
+                    if nbars >= vldlen > 0:
+                        bvalid = True
+            else:
+                if vldlen == nbars:
+                    # Fixme, 如果部分时间没有交易，vol=0, vldlen可能小于nbars
+                    bvalid = True
+
+        if not bvalid:
+            if vldlen > 0:
                 log.info('[!KDVMIN]-: {}:: {}-{} '.format(code, dt, vldlen))
+            if susp is not None and vldlen > 0:
+                log.info(susp)
 
         return bvalid
 
     def stock_suspend(self, code):
         try:
             info = self.suspend_info.loc[pd.IndexSlice[:, code], :]
-            info = info.droplevel(1)  # Drop the tscode index
+            info.index = info.index.droplevel(1)  # Drop the tscode index
             return info
         except:
             return None

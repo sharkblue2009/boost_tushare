@@ -25,7 +25,7 @@ class XcNLBasic(object):
         #     code = stock + subfix
         #     return code
 
-        fields = 'ts_code,name,list_date'
+        fields = INDEX_INFO_META['columns']
         info1 = self.pro_api.index_basic(market='SSE', fields=fields)
         # info1.loc[:, 'ts_code'] = info1.loc[:, 'ts_code'].apply(conv1, subfix='.XSHG')
         info1.loc[:, 'exchange'] = 'SSE'
@@ -35,21 +35,16 @@ class XcNLBasic(object):
         info = pd.concat([info1, info2], axis=0)
         if not info.empty:
             info.loc[:, 'list_date'].fillna('20000101', inplace=True)
-
-            info_to_db = pd.DataFrame({
-                'ts_code': info['ts_code'],
-                'exchange': info['exchange'],
-                'name': info['name'],
-                'start_date': info['list_date'],
-                'end_date': '21000101'
-            })
-
-            return info_to_db
+            info.loc[:, 'exp_date'].fillna('21000101', inplace=True)
+            return info
         return None
 
     def set_stock_info(self):
-        """"""
-        fields = 'ts_code,symbol,name,exchange,area,industry,list_date,delist_date'
+        """
+        上市状态： L上市 D退市 P暂停上市
+        :return:
+        """
+        fields = STOCK_INFO_META['columns']
         info1 = self.pro_api.stock_basic(list_status='L', fields=fields)  # 上市状态： L上市 D退市 P暂停上市
         info2 = self.pro_api.stock_basic(list_status='D', fields=fields)
         info3 = self.pro_api.stock_basic(list_status='P', fields=fields)
@@ -57,15 +52,7 @@ class XcNLBasic(object):
         if not info.empty:
             # info.loc[:, 'ts_code'] = info.loc[:, 'ts_code'].apply(symbol_tus_to_std)
             info.loc[:, 'delist_date'].fillna('21000101', inplace=True)
-
-            info_to_db = pd.DataFrame({
-                'ts_code': info['ts_code'],
-                'exchange': info['exchange'],
-                'name': info['name'],
-                'start_date': info['list_date'],
-                'end_date': info['delist_date'],
-            })
-            return info_to_db
+            return info
         return None
 
     def set_fund_info(self):
@@ -73,23 +60,17 @@ class XcNLBasic(object):
 
         :return:
         """
-        fields = 'ts_code,name,list_date,delist_date'
+        fields = FUND_INFO_META['columns']
         info = self.pro_api.fund_basic(market='E', fields=fields)  # 交易市场: E场内 O场外（默认E）
         if not info.empty:
             # info2 = self.pro_api.fund_basic(market='O', fields=fields)
             # info = pd.concat([info1, info2], axis=0)
             # info.loc[:, 'ts_code'] = info.loc[:, 'ts_code'].apply(symbol_tus_to_std)
+            info.loc[:, 'list_date'].fillna('20000101', inplace=True)
             info.loc[:, 'delist_date'].fillna('21000101', inplace=True)
             info.loc[:, 'exchange'] = info.loc[:, 'ts_code'].apply(lambda x: 'SSE' if x.endswith('.SH') else 'SZ')
 
-            info_to_db = pd.DataFrame({
-                'ts_code': info['ts_code'],
-                'exchange': info['exchange'],
-                'name': info['name'],
-                'start_date': info['list_date'],
-                'end_date': info['delist_date'],
-            })
-            return info_to_db
+            return info
         return None
 
     def set_index_weight(self, index_symbol, date):

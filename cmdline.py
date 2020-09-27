@@ -26,7 +26,7 @@ def cntus_update_basic():
     """
     log.info('Update basic information...(Trading Calendar, Asset info)')
     updater = tusupdater_init()
-
+    updater.update_domain(force_mode=True)
     # get_index_info(IOFLAG.READ_NETDB)
     # get_stock_info(IOFLAG.READ_NETDB)
     # get_fund_info(IOFLAG.READ_NETDB)
@@ -47,6 +47,7 @@ def cntus_update_stock_day(start_date='20150101'):
     updater = tusupdater_init()
 
     df_stock = updater.get_stock_info()
+    df_stock = df_stock[df_stock.list_status == 'L']
 
     def _fetch_day(symbols):
         results = {}
@@ -88,7 +89,7 @@ def cntus_update_stock_day_ext(start_date='20150101'):
     updater = tusupdater_init()
 
     df_stock = updater.get_stock_info()
-
+    df_stock = df_stock[df_stock.list_status == 'L']
     def _fetch_stock_ext(symbols):
         results = {}
         for ss in symbols:
@@ -168,7 +169,7 @@ def cntus_update_stock_min(start_date='20190101'):
     updater = tusupdater_init()
 
     df_stock = updater.get_stock_info()
-
+    df_stock = df_stock[df_stock.list_status == 'L']
     def _fetch_min(symbols):
         results = {}
         for ss in symbols:
@@ -197,9 +198,9 @@ def cntus_update_stock_min(start_date='20190101'):
 
         symbol_batch = all_symbols[idx:idx + batch_size]
 
+        # result = _fetch_min(symbol_batch)
         result = parallelize(_fetch_min, workers=20, splitlen=3)(symbol_batch)
         all_result.update(result)
-        # _fetch_min(symbol_batch)
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
 
@@ -443,6 +444,14 @@ def tsshow(days):
         print('Minute OK')
     print('-' * 50)
 
+    print('-' * 50)
+    df = netreader.set_suspend_d(today)
+    if df.empty:
+        print('Suspend unavailable')
+    else:
+        print(df.iloc[-3:])
+        print('Suspend OK')
+    print('-' * 50)
 
 first.add_command(update_basic)
 first.add_command(update_daily)

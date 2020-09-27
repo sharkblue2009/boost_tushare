@@ -63,10 +63,70 @@ CALENDAR_DTIDX_META = {
     'dtype': 'M8[m]',
 }
 
-ASSET_INFO_META = {
+STOCK_INFO_META = {
     'tpk': KVTYPE.TPK_RAW,
     'tpv': KVTYPE.TPV_DFRAME,
-    'columns': ['ts_code', 'exchange', 'name', 'start_date', 'end_date'],
+    'columns': [
+        'ts_code',
+        'symbol',
+        'name',
+        'area',
+        'industry',
+        'fullname',
+        'enname',
+        'market',
+        'exchange',
+        'curr_type',
+        'list_status',
+        'list_date',
+        'delist_date',
+        'is_hs',
+    ],
+}
+
+INDEX_INFO_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_DFRAME,
+    'columns': [
+        'ts_code',
+        'name',
+        'fullname',
+        'market',
+        'publisher',
+        'index_type',
+        'category',
+        'base_date',
+        'base_point',
+        'list_date',
+        'weight_rule',
+        'desc',
+        'exp_date',
+    ],
+}
+
+FUND_INFO_META = {
+    'tpk': KVTYPE.TPK_RAW,
+    'tpv': KVTYPE.TPV_DFRAME,
+    'columns': [
+        'ts_code',
+        'name',
+        'management',
+        'custodian',
+        'fund_type',
+        'found_date',
+        'due_date',
+        'list_date',
+        'issue_date',
+        'delist_date',
+        'issue_amount',
+        'm_fee',
+        'c_fee',
+        'duration_year',
+        'p_value',
+        'min_amount',
+        'exp_return',
+        'benchmark',
+    ],
 }
 
 INDEX_WEIGHT_META = {

@@ -63,12 +63,14 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
 
     def update_domain(self, force_mode=False):
         super(XcDBUpdater, self).update_domain(force_mode)
+
         self.suspend_info = self.get_suspend_d(self.xctus_first_day, self.xctus_last_day)
 
-    def update_suspend_d(self, start, end):
+    def update_suspend_d(self, start, end, rollback=10):
         """
         :param start:
         :param end:
+        :param rollback:
         :return:
         """
         mmdts = self.gen_keys_daily(start, end, None, None)
@@ -85,6 +87,10 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 bvalid[n] = True  # update missed month data.
             else:
                 bvalid[n] = False
+
+        if rollback > 0:
+            # set tail to invalid to always download it
+            bvalid[-rollback:] = False
 
         for n, dd in enumerate(mmdts):
             if not bvalid[n]:
@@ -319,5 +325,9 @@ def tusupdater_init() -> XcDBUpdater:
     global g_updater
     if g_updater is None:
         g_updater = XcDBUpdater()
-        g_updater.init_domain()
+        try:
+            g_updater.init_domain()
+        except:
+            log.info('Init domain fail.')
+            pass
     return g_updater

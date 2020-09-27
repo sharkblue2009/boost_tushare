@@ -168,7 +168,7 @@ def QUARTER_END(date, trade_days=None):
     return None
 
 
-def session_day_to_min_tus(day_sess, freq='1min', market_open=True):
+def session_day_to_min_tus_a(day_sess, freq='1min', market_open=True):
     """
     Convert day based session to high frequency session
     :param day_sess:
@@ -199,6 +199,79 @@ def session_day_to_min_tus(day_sess, freq='1min', market_open=True):
         out_sess = out_sess.append(ss1)
 
     return out_sess
+
+from pytz import UTC
+
+NANOSECONDS_PER_MINUTE = int(6e10)
+
+
+def _compute_all_minutes(opens_in_ns, closes_in_ns, periods, sections):
+    """
+    Given arrays of opens and closes, both in nanoseconds,
+    return an array of each minute between the opens and closes.
+    """
+    deltas = closes_in_ns - opens_in_ns
+
+    # + 1 because we want 390 mins per standard day, not 389
+    daily_sizes = (deltas // periods) + 1
+    # num_minutes = daily_sizes.sum()
+
+    # One allocation for the entire thing. This assumes that each day
+    # represents a contiguous block of minutes.
+    pieces = []
+
+    for open_, size in zip(opens_in_ns, daily_sizes):
+        day_mins = np.arange(open_, open_ + size * periods, periods)
+        day_mins = np.append(day_mins[:sections[0]], day_mins[sections[1]:])
+        pieces.append(day_mins)
+
+    out = np.concatenate(pieces).view('datetime64[ns]')
+    # assert len(out) == num_minutes
+    return out
+
+
+def session_day_to_min_tus(day_sess, freq='1min', market_open=False, tz=None):
+    """
+    Exchange calendar for the Shanghai Stock Exchange (XSHG, XSSC, SSE).
+
+    Open time: 9:30 Asia/Shanghai
+    Close time: 15:00 Asia/Shanghai
+
+    NOTE: For now, we are skipping the intra-day break from 11:30 to 13:00.
+
+    Due to the complexity around the Shanghai exchange holidays, we are
+    hardcoding a list of holidays covering 1999-2025, inclusive. There are
+    no known early closes or late opens.
+    """
+    freq = freq.lower()
+    n_min = {'1min': 1, '5min': 5, '15min': 15, '30min': 30, '60min': 60}
+    morn_nonn = {'1min': (120, -120), '5min': (24, -24),
+                 '15min': (8, -8), '30min': (4, -4), '60min': (2, -2)}
+
+    if market_open:
+        _opens = day_sess + pd.Timedelta(hours=9, minutes=30)
+        _closes = day_sess + pd.Timedelta(hours=15, minutes=0)
+        periods = n_min[freq] * NANOSECONDS_PER_MINUTE
+        sections = morn_nonn[freq]
+        sections = (sections[0] + 1, sections[1])
+    else:
+        _opens = day_sess + pd.Timedelta(hours=9, minutes=30 + n_min[freq])
+        _closes = day_sess + pd.Timedelta(hours=15, minutes=0)
+        periods = n_min[freq] * NANOSECONDS_PER_MINUTE
+        sections = morn_nonn[freq]
+
+    """
+    Returns a DatetimeIndex representing all the minutes in this calendar.
+    """
+    opens_in_ns = _opens.values.astype(
+        'datetime64[ns]',
+    ).view('int64')
+
+    closes_in_ns = _closes.values.astype(
+        'datetime64[ns]',
+    ).view('int64')
+
+    return pd.DatetimeIndex(_compute_all_minutes(opens_in_ns, closes_in_ns, periods, sections), tz=tz, )
 
 
 # def find_closest_date(all_dates, dt, mode='backward'):

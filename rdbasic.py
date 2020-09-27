@@ -134,7 +134,7 @@ class XcReaderBasic(XcDomain):
         get index information
         :return:
         """
-        db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
+        db = self.facc(TusSdbs.SDB_ASSET_INFO.value, INDEX_INFO_META)
         kk = TusKeys.INDEX_INFO.value
 
         if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
@@ -149,7 +149,7 @@ class XcReaderBasic(XcDomain):
     @api_call
     def get_stock_info(self, flag=IOFLAG.READ_XC):
         """"""
-        db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
+        db = self.facc(TusSdbs.SDB_ASSET_INFO.value, STOCK_INFO_META)
         kk = TusKeys.STOCK_INFO.value
 
         if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
@@ -168,7 +168,7 @@ class XcReaderBasic(XcDomain):
 
         :return:
         """
-        db = self.facc(TusSdbs.SDB_ASSET_INFO.value, ASSET_INFO_META)
+        db = self.facc(TusSdbs.SDB_ASSET_INFO.value, FUND_INFO_META)
         kk = TusKeys.FUND_INFO.value
 
         if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
