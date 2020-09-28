@@ -240,7 +240,7 @@ class XcDomain(object):
         end_date = strdt_to_dt64(end_date)
         return start_date, end_date
 
-    def integrity_check_km_vday(self, dt, dtval, code=None):
+    def integrity_check_km_vday(self, dt, dtval, code=None, astype='E'):
         """
         monthly key with daily data. use suspend information to check if the data is integrate
         :param dt: date keys
@@ -251,16 +251,21 @@ class XcDomain(object):
         if dtval is None:
             return False
 
-        trdays = self.gen_dindex_monthly(dt, dt)
-        susp_info = self.stock_suspend(code)
-        if susp_info is None:
-            expect_size = len(trdays)
-            susp = None
+        trdidx = self.gen_dindex_monthly(dt, dt)
+        nbars_mon = len(trdidx)
+        susp = None
+        if astype == 'E':
+            susp_info = self.stock_suspend(code)
+            if susp_info is None:
+                expect_size = nbars_mon
+                susp = None
+            else:
+                # 股票存在停牌半天的情况，也会被计入suspend列表, 但suspend_timing列有值
+                susp = susp_info[(susp_info.index >= MONTH_START(dt)) & (susp_info.index <= MONTH_END(dt))]
+                susp = susp.loc[(susp['suspend_type'] == 'S') & (susp['suspend_timing'].isna()), :]
+                expect_size = nbars_mon - len(susp)
         else:
-            # 股票存在停牌半天的情况，也会被计入suspend列表, 但suspend_timing列有值
-            susp = susp_info[(susp_info.index >= MONTH_START(dt)) & (susp_info.index <= MONTH_END(dt))]
-            susp = susp.loc[(susp['suspend_type'] == 'S') & (susp['suspend_timing'].isna()), :]
-            expect_size = len(trdays) - len(susp)
+            expect_size = nbars_mon
 
         vldlen = np.sum(~np.isnan(dtval))
         if expect_size == vldlen:
@@ -268,12 +273,12 @@ class XcDomain(object):
         else:
             bvalid = False
             if susp is not None:
-                if len(trdays) < (len(susp) + vldlen):
-                    log.info('[!KMVDAY]:{}-{}:: t{}-s{}-v{} '.format(code, dt, len(trdays), len(susp), vldlen))
+                if expect_size < vldlen:
+                    log.info('[!KMVDAY]:{}-{}:: t{}-s{}-v{} '.format(code, dt, len(trdidx), len(susp), vldlen))
 
         return bvalid
 
-    def integrity_check_kd_vmin(self, dt, dtval, freq='1min', code=None):
+    def integrity_check_kd_vmin(self, dt, dtval, freq='1min', code=None, astype='E'):
         """
         daily key with minute data, use suspend information to judge if the data should exist,
         :param dt: date keys
@@ -285,44 +290,41 @@ class XcDomain(object):
         if dtval is None:
             return False
 
-        nbars = XTUS_FREQ_BARS[freq]
-        susp_info = self.stock_suspend(code)
-
-        bvalid = False
-        vldlen = np.sum(~np.isnan(dtval))
+        nbars_day = XTUS_FREQ_BARS[freq]
         susp = None
-        if susp_info is None:
-            if vldlen == nbars:
-                bvalid = True
-        else:
-            susp = susp_info.loc[(susp_info['suspend_type'] == 'S') & (susp_info.index == dt), :]
-            if not susp.empty:
-                timing = susp['suspend_timing'].iloc[-1]
-                if timing is None:
-                    # 当日全天停牌
-                    if vldlen == 0:
-                        bvalid = True
+        vldlen = np.sum(~np.isnan(dtval))
 
-                    if vldlen == nbars:
+        if astype == 'E':
+            susp_info = self.stock_suspend(code)
+
+            if susp_info is None:
+                minbars = nbars_day
+            else:
+                susp = susp_info.loc[(susp_info['suspend_type'] == 'S') & (susp_info.index == dt), :]
+                if not susp.empty:
+                    timing = susp['suspend_timing'].iloc[-1]
+                    if timing is None:
+                        # 当日全天停牌
                         # 部分品种，停牌数据有误。目前发现这种情况存在于退市/暂停上市的股票。
                         # 例如： 300216.SZ， 300431.SZ，这时nbars=vldlen视为有效。
-                        bvalid = True
+                        minbars = nbars_day
+                    else:
+                        # 部分时间停牌
+                        minbars = 1
                 else:
-                    # 部分时间停牌
-                    if nbars >= vldlen > 0:
-                        bvalid = True
-            else:
-                if vldlen == nbars:
-                    # Fixme, 如果部分时间没有交易，vol=0, vldlen可能小于nbars
-                    bvalid = True
+                    minbars = nbars_day
+                    # Fixme, 如果部分时间没有交易，vldlen可能小于nbars
+        else:
+            minbars = nbars_day
 
-        if not bvalid:
+        if nbars_day >= vldlen >= minbars:
+            return True
+        else:
             if vldlen > 0:
                 log.info('[!KDVMIN]-: {}:: {}-{} '.format(code, dt, vldlen))
             if susp is not None and vldlen > 0:
                 log.info(susp)
-
-        return bvalid
+            return False
 
     def stock_suspend(self, code):
         try:
@@ -350,10 +352,10 @@ class XcDomain(object):
 
     @property
     def index_info(self):
-        if self._stock_info is None:
+        if self._index_info is None:
             log.info('load index info')
             info = self.get_index_info()
-            self._index_info= info.set_index('ts_code', drop=True)
+            self._index_info = info.set_index('ts_code', drop=True)
         return self._index_info
 
     @property

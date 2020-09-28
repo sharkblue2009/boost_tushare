@@ -9,6 +9,7 @@ from boost_tushare.utils.parallelize import parallelize
 
 from boost_tushare import *
 from boost_tushare.xupdater import *
+from boost_tushare.xchecker import *
 
 log = logbook.Logger('cli')
 
@@ -240,9 +241,10 @@ def cntus_update_index_min(start_date='20190101'):
 
 ####################################################################
 def cntus_check_stock_day(start_date='20150101'):
-    tusbooster_init()
+    checker = tuschecker_init()
 
-    df_stock = get_stock_info()
+    df_stock = checker.get_stock_info()
+    df_stock = df_stock[df_stock.list_status == 'L']
 
     def _fetch_day(symbols):
         results = {}
@@ -251,7 +253,7 @@ def cntus_check_stock_day(start_date='20150101'):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = check_price_daily(stk, t_start, t_end, astype)
+            results[stk] = checker.check_price_daily(stk, t_start, t_end, astype)
 
         return results
 
@@ -261,26 +263,18 @@ def cntus_check_stock_day(start_date='20150101'):
             stk = ss['code']
             t_start = ss['start_date']
             t_end = ss['end_date']
-
-            get_stock_xdxr(stk, IOFLAG.READ_NETDB)
-            # reader.update_stock_adjfactor(stk, t_start, t_end)
-            results[stk] = check_stock_dayinfo(stk, t_start, t_end)
+            results[stk] = checker.check_stock_dayinfo(stk, t_start, t_end)
 
         return results
 
     end_date = pd.Timestamp.today().strftime('%Y%m%d')
-
-    # dummy read suspend_info
-    suspend_info = get_suspend_d(start_date, end_date)
-    # booster = init_booster()
-    # XcTusBooster.suspend_info.update(booster)
 
     all_symbols = []
     for k, stk in df_stock['ts_code'].items():
         all_symbols.append({'code': stk, 'start_date': start_date, 'end_date': end_date, 'astype': 'E'})
 
     all_symbols = list(reversed(all_symbols))
-    log.info('Downloading stocks data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+    log.info('Checking stocks data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
 
     batch_size = 60
     all_result = {}
@@ -294,13 +288,51 @@ def cntus_check_stock_day(start_date='20150101'):
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
 
-    log.info('Downloading stocks extension data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+    log.info('Checking stocks extension data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
 
     all_result = {}
     for idx in range(0, len(all_symbols), batch_size):
         progress_bar(idx, len(all_symbols))
         symbol_batch = all_symbols[idx:idx + batch_size]
-        parallelize(_fetch_stock_ext, workers=20, splitlen=3)(symbol_batch)
+        result = parallelize(_fetch_stock_ext, workers=20, splitlen=3)(symbol_batch)
+        all_result.update(result)
+    sys.stdout.write('\n')
+    log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
+
+
+def cntus_check_index_day(start_date='20150101'):
+    checker = tuschecker_init()
+
+    df_stock = checker.get_index_info()
+
+    def _fetch_day(symbols):
+        results = {}
+        for ss in symbols:
+            stk = ss['code']
+            t_start = ss['start_date']
+            t_end = ss['end_date']
+            astype = ss['astype']
+            results[stk] = checker.check_price_daily(stk, t_start, t_end, astype)
+
+        return results
+
+    end_date = pd.Timestamp.today().strftime('%Y%m%d')
+
+    all_symbols = []
+    for k, stk in df_stock['ts_code'].items():
+        all_symbols.append({'code': stk, 'start_date': start_date, 'end_date': end_date, 'astype': 'I'})
+
+    all_symbols = list(reversed(all_symbols))
+    log.info('Checking index data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+
+    batch_size = 60
+    all_result = {}
+    for idx in range(0, len(all_symbols), batch_size):
+        progress_bar(idx, len(all_symbols))
+        symbol_batch = all_symbols[idx:idx + batch_size]
+
+        # result = _fetch_day(symbol_batch)
+        result = parallelize(_fetch_day, workers=20, splitlen=3)(symbol_batch)
         all_result.update(result)
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
@@ -388,6 +420,14 @@ def check_daily(start, end):
 
 
 @click.command()
+@click.option("--start", default='20130101', )
+@click.option("--end", default=None, )
+def check_index_daily(start, end):
+    cntus_check_index_day(start_date=start)
+    click.echo('done')
+
+
+@click.command()
 @click.option("--days", default=0, )
 def tsshow(days):
     """"""
@@ -456,6 +496,7 @@ first.add_command(update_minute)
 first.add_command(update_index_daily)
 first.add_command(update_index_minute)
 first.add_command(check_daily)
+first.add_command(check_index_daily)
 first.add_command(tsshow)
 
 if __name__ == "__main__":
