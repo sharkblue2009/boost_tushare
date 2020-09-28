@@ -25,8 +25,8 @@ class XcReaderPrice(XcDomain):
 
     @api_call
     def get_price_daily(self, code, start: [str or pd.Timestamp or np.datetime64],
-                                    end: [str or pd.Timestamp or np.datetime64],
-                                    astype=None, flag=IOFLAG.READ_XC):
+                        end: [str or pd.Timestamp or np.datetime64],
+                        astype='E', flag=IOFLAG.READ_XC):
         """
         按月存取股票的日线数据
         1. 如当月停牌无交易，则存入空数据(或0)
@@ -40,6 +40,8 @@ class XcReaderPrice(XcDomain):
         :param code:
         :param start: start date: [str or pd.Timestamp or np.datetime64]
         :param end:
+        :param astype:
+        :param flag:
         :return:
         """
         if astype is None:
@@ -256,6 +258,7 @@ class XcReaderPrice(XcDomain):
             if val is not None:
                 return val
         if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
+            log.info('!!! xdxr info not exist, please use updater to download it first.')
             info = self.netloader.set_stock_xdxr(code)
             return db.save(kk, info)
 
@@ -281,6 +284,3 @@ class XcReaderPrice(XcDomain):
             return db.save(kk, info)
 
         return
-
-
-

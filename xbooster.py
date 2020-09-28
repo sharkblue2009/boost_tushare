@@ -53,7 +53,7 @@ class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice):
         else:
             self.xctus_last_day = last_day
 
-        self.xctus_first_day = pd.Timestamp('20080101')
+        self.xctus_first_day = pd.Timestamp('20000101')
 
         log.info('TuBooster: date range:{}>>>{}'.format(self.xctus_first_day, self.xctus_last_day))
         # self.domain = XcDomain()

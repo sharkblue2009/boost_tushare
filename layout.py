@@ -173,6 +173,7 @@ STOCK_XDXR_META = {
                 'imp_ann_date',
                 # 'base_date',
                 # 'base_share',
+                'prev_close',  # Note: extension data for xdxr, prev_close
                 ],
 }
 

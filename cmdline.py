@@ -27,18 +27,16 @@ def cntus_update_basic():
     log.info('Update basic information...(Trading Calendar, Asset info)')
     updater = tusupdater_init()
     updater.update_domain(force_mode=True)
-    # get_index_info(IOFLAG.READ_NETDB)
-    # get_stock_info(IOFLAG.READ_NETDB)
-    # get_fund_info(IOFLAG.READ_NETDB)
-    # get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
-    # get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
-    # log.info('Finished')
 
     start_date = '20100101'
     end_date = pd.Timestamp.today().strftime('%Y%m%d')
 
     log.info('Downloading stocks suspend data: {}-{}'.format(start_date, end_date))
     updater.update_suspend_d(start_date, end_date)
+
+    log.info('Renew Domain Class...')
+    updater.renew_domain()
+    updater.init_domain()
 
     return
 
@@ -52,11 +50,13 @@ def cntus_update_stock_day(start_date='20150101'):
     def _fetch_day(symbols):
         results = {}
         for ss in symbols:
-            stk = ss['code']
+            sst = ss['code']
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = updater.update_price_daily(stk, t_start, t_end, astype)
+            results[sst] = updater.update_price_daily(sst, t_start, t_end, astype)
+            updater.update_stock_xdxr(sst, t_start, t_end)  # Froce reload xdxr from net
+            # updater.update_stock_adjfactor(stk, t_start, t_end)
 
         return results
 
@@ -78,8 +78,8 @@ def cntus_update_stock_day(start_date='20150101'):
         progress_bar(idx, len(all_symbols))
         symbol_batch = all_symbols[idx:idx + batch_size]
 
-        result = _fetch_day(symbol_batch)
-        # result = parallelize(_fetch_day, workers=20, splitlen=3)(symbol_batch)
+        # result = _fetch_day(symbol_batch)
+        result = parallelize(_fetch_day, workers=20, splitlen=3)(symbol_batch)
         all_result.update(result)
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
@@ -90,18 +90,14 @@ def cntus_update_stock_day_ext(start_date='20150101'):
 
     df_stock = updater.get_stock_info()
     df_stock = df_stock[df_stock.list_status == 'L']
+
     def _fetch_stock_ext(symbols):
         results = {}
         for ss in symbols:
-            stk = ss['code']
+            sst = ss['code']
             t_start = ss['start_date']
             t_end = ss['end_date']
-
-            # Froce reload xdxr from net
-            updater.get_stock_xdxr(stk, IOFLAG.READ_NETDB)
-
-            # reader.update_stock_adjfactor(stk, t_start, t_end)
-            results[stk] = updater.update_stock_dayinfo(stk, t_start, t_end)
+            results[sst] = updater.update_stock_dayinfo(sst, t_start, t_end)
 
         return results
 
@@ -115,10 +111,8 @@ def cntus_update_stock_day_ext(start_date='20150101'):
         all_symbols.append({'code': stk, 'start_date': start_date, 'end_date': end_date, 'astype': 'E'})
 
     all_symbols = list(reversed(all_symbols))
-
     batch_size = 60
-
-    log.info('Downloading stocks extension data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+    log.info('Downloading stocks extension(xdxr, dayinfo) data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
 
     all_result = {}
     for idx in range(0, len(all_symbols), batch_size):
@@ -170,6 +164,7 @@ def cntus_update_stock_min(start_date='20190101'):
 
     df_stock = updater.get_stock_info()
     df_stock = df_stock[df_stock.list_status == 'L']
+
     def _fetch_min(symbols):
         results = {}
         for ss in symbols:
@@ -452,6 +447,7 @@ def tsshow(days):
         print(df.iloc[-3:])
         print('Suspend OK')
     print('-' * 50)
+
 
 first.add_command(update_basic)
 first.add_command(update_daily)

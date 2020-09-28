@@ -32,16 +32,11 @@ class XcReaderBasic(XcDomain):
         load domain data from DB.
         :return:
         """
-        db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
-        first_date = db.load(TusKeys.CAL_FIRST_DATE.value)
-        current_date = db.load(TusKeys.CAL_CURRENT_DATE.value)
-        db.commit()
-        if first_date is None or current_date is None:
-            self.update_domain()
-            first_date = self.xctus_first_day
-            current_date = self.xctus_last_day
+        self.update_domain(force_mode=False)
+        first_date = self.xctus_first_day
+        current_date = self.xctus_last_day
 
-        log.info('DB_Domain calendar:{}, {}'.format(first_date, current_date))
+        log.info('Domain calendar:{}, {}'.format(first_date, current_date))
 
         db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_DTIDX_META)
         self._cal_day = db.load(TusKeys.CAL_INDEX_DAY.value)
@@ -50,16 +45,6 @@ class XcReaderBasic(XcDomain):
         self._cal_5min = db.load(TusKeys.CAL_INDEX_5MIN.value)
         db.commit()
 
-        info = self.get_index_info()
-        self.index_info = info.set_index('ts_code', drop=True)
-        info = self.get_stock_info()
-        self.stock_info = info.set_index('ts_code', drop=True)
-        info = self.get_fund_info()
-        self.fund_info = info.set_index('ts_code', drop=True)
-
-        # dummy read here to create the tcalmap, or it may fail when parallel thread case.
-        aa = self.tcalmap_day
-        bb = self.tcalmap_mon
         return
 
     def update_domain(self, force_mode=False):
@@ -68,6 +53,20 @@ class XcReaderBasic(XcDomain):
         :param force_mode:
         :return:
         """
+        if force_mode:
+            log.info('Update trading calendar...')
+            tcal = self.get_trade_cal(IOFLAG.READ_NETDB)
+        else:
+            tcal = self.get_trade_cal(IOFLAG.READ_XC)
+
+        # Align the last/first day to trade calendar
+        tcday = pd.to_datetime(tcal.tolist(), format='%Y%m%d').sort_values(ascending=True)
+        tcday = tcday[(self.xctus_first_day <= tcday) & (tcday <= self.xctus_last_day)]
+        db_first_day = tcday[0]
+        db_last_day = tcday[-1]
+        self.xctus_first_day = db_first_day
+        self.xctus_last_day = db_last_day
+
         db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
         b_need_update = True
         first_date = db.load(TusKeys.CAL_FIRST_DATE.value)
@@ -75,15 +74,11 @@ class XcReaderBasic(XcDomain):
         db.commit()
 
         if first_date is not None and current_date is not None:
-            if first_date == self.xctus_first_day and current_date == self.xctus_last_day:
+            if first_date == db_first_day and current_date == db_last_day:
                 b_need_update = False
 
         if b_need_update or force_mode:
-            log.info('Update calendar:{}, {}'.format(first_date, current_date))
-            tcal = self.get_trade_cal(IOFLAG.READ_NETDB)
-
-            tcday = pd.to_datetime(tcal.tolist(), format='%Y%m%d').sort_values(ascending=True)
-            tcday = tcday[(self.xctus_first_day <= tcday) & (tcday <= self.xctus_last_day)]
+            log.info('Update calendar index...')
             tc1min = session_day_to_min_tus(tcday, '1min', market_open=False)
             tc5min = session_day_to_min_tus(tcday, '5min', market_open=False)
 
@@ -94,18 +89,19 @@ class XcReaderBasic(XcDomain):
             db.save(TusKeys.CAL_INDEX_5MIN.value, tc5min)
 
             db.metadata = GENERAL_OBJ_META
-            db.save(TusKeys.CAL_FIRST_DATE.value, self.xctus_first_day)
-            db.save(TusKeys.CAL_CURRENT_DATE.value, self.xctus_last_day)
+            db.save(TusKeys.CAL_FIRST_DATE.value, db_first_day)
+            db.save(TusKeys.CAL_CURRENT_DATE.value, db_last_day)
             db.commit()
-            log.info('Done')
 
-        log.info('Update asset info...')
-        self.get_index_info(IOFLAG.READ_NETDB)
-        self.get_stock_info(IOFLAG.READ_NETDB)
-        self.get_fund_info(IOFLAG.READ_NETDB)
-        self.get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
-        self.get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
-        log.info('Done')
+            log.info('Update asset info...')
+            self.get_index_info(IOFLAG.READ_NETDB)
+            self.get_stock_info(IOFLAG.READ_NETDB)
+            self.get_fund_info(IOFLAG.READ_NETDB)
+            self.get_index_classify(level='L1', flag=IOFLAG.READ_NETDB)
+            self.get_index_classify(level='L2', flag=IOFLAG.READ_NETDB)
+
+        # log.info('Domain update done.')
+
         return
 
     ##########################################################

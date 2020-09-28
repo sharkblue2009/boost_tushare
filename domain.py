@@ -1,5 +1,6 @@
 from .utils.xcutils import *
 from logbook import Logger
+from abc import abstractmethod
 
 log = Logger('xtus')
 
@@ -12,13 +13,13 @@ class XcDomain(object):
     _cal_day = None
     _cal_1min = None
     _cal_5min = None
+
+    _suspend_info = None
+    _stock_info = None
+    _index_info = None
+    _fund_info = None
     _cal_map_month = None
     _cal_map_day = None
-
-    index_info = None
-    stock_info = None
-    fund_info = None
-    suspend_info = None
 
     def __init__(self):
         log.info('Domain Init...')
@@ -31,12 +32,15 @@ class XcDomain(object):
         """
         return self._cal_raw
 
-    @trade_cal_raw.setter
-    def trade_cal_raw(self, value):
+    def renew_domain(self):
         self._cal_raw = None
         self._cal_day = None
         self._cal_1min = None
         self._cal_5min = None
+        self._suspend_info = None
+        self._stock_info = None
+        self._index_info = None
+        self._fund_info = None
         self._cal_map_month = None
         self._cal_map_day = None
 
@@ -64,24 +68,24 @@ class XcDomain(object):
         return None
 
     @property
-    def tcalmap_mon(self) -> pd.DataFrame:
+    def tcalmap_mon(self):
         if self._cal_map_month is None:
             tstart = self.xctus_first_day
             tend = self.xctus_last_day
             m_start = pd.Timestamp(year=tstart.year, month=tstart.month, day=1)
             m_end = pd.Timestamp(year=tend.year, month=tend.month, day=tend.days_in_month)
             mdates = pd.date_range(m_start, m_end, freq='MS').values
-            self._cal_map_month = pd.DataFrame(index=mdates, columns=['start', 'end'], dtype=np.int64)
+            cmap1 = pd.DataFrame(index=mdates, columns=['start', 'end'], dtype=np.int64)
             for dd in mdates:
                 stt = np.sum(self.trade_cal < dd)
                 ett = np.sum(self.trade_cal <= MONTH_END(dd))
-                self._cal_map_month.loc[dd, 'start'] = stt
-                self._cal_map_month.loc[dd, 'end'] = ett
-            self._cal_map_month = self._cal_map_month.astype(np.int64)
+                cmap1.loc[dd, 'start'] = stt
+                cmap1.loc[dd, 'end'] = ett
+            self._cal_map_month = cmap1.astype(np.int64)
         return self._cal_map_month
 
     @property
-    def tcalmap_day(self) -> pd.Series:
+    def tcalmap_day(self):
         if self._cal_map_day is None:
             self._cal_map_day = pd.Series(data=np.arange(len(self.trade_cal)), index=self.trade_cal, dtype=np.int64)
         return self._cal_map_day
@@ -253,13 +257,13 @@ class XcDomain(object):
             expect_size = len(trdays)
             susp = None
         else:
+            # 股票存在停牌半天的情况，也会被计入suspend列表, 但suspend_timing列有值
             susp = susp_info[(susp_info.index >= MONTH_START(dt)) & (susp_info.index <= MONTH_END(dt))]
             susp = susp.loc[(susp['suspend_type'] == 'S') & (susp['suspend_timing'].isna()), :]
             expect_size = len(trdays) - len(susp)
 
         vldlen = np.sum(~np.isnan(dtval))
         if expect_size == vldlen:
-            # 股票存在停牌半天的情况，也会被计入suspend列表
             bvalid = True
         else:
             bvalid = False
@@ -327,3 +331,50 @@ class XcDomain(object):
             return info
         except:
             return None
+
+    @abstractmethod
+    def get_suspend_d(self, *args, **kwargs):
+        """"""
+
+    @abstractmethod
+    def get_index_info(self, *args, **kwargs):
+        """"""
+
+    @abstractmethod
+    def get_stock_info(self, *args, **kwargs):
+        """"""
+
+    @abstractmethod
+    def get_fund_info(self, *args, **kwargs):
+        """"""
+
+    @property
+    def index_info(self):
+        if self._stock_info is None:
+            log.info('load index info')
+            info = self.get_index_info()
+            self._index_info= info.set_index('ts_code', drop=True)
+        return self._index_info
+
+    @property
+    def stock_info(self):
+        if self._stock_info is None:
+            log.info('load stock info')
+            info = self.get_stock_info()
+            self._stock_info = info.set_index('ts_code', drop=True)
+        return self._stock_info
+
+    @property
+    def fund_info(self):
+        if self._fund_info is None:
+            log.info('load fund info')
+            info = self.get_fund_info()
+            self._fund_info = info.set_index('ts_code', drop=True)
+        return self._fund_info
+
+    @property
+    def suspend_info(self):
+        if self._suspend_info is None:
+            log.info('load suspend info')
+            self._suspend_info = self.get_suspend_d(self.xctus_first_day, self.xctus_last_day)
+        return self._suspend_info

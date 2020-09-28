@@ -10,6 +10,7 @@ from .rdbasic import XcReaderBasic
 from .rdprice import XcReaderPrice
 from .utils.memoize import lazyval
 from .proloader import netloader_init, TusNetLoader
+from .domain import XcDomain
 
 log = logbook.Logger('tupd')
 
@@ -51,20 +52,29 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
         else:
             self.xctus_last_day = last_day
 
-        self.xctus_first_day = pd.Timestamp('20080101')
+        self.xctus_first_day = pd.Timestamp('20000101')
 
         log.info('Updater: date range:{}-{}'.format(self.xctus_first_day, self.xctus_last_day))
 
         super(XcDBUpdater, self).__init__()
 
     def init_domain(self):
+        """
+        because updater may working at multi thread env, so need to load info first.
+        """
         super(XcDBUpdater, self).init_domain()
-        self.suspend_info = self.get_suspend_d(self.xctus_first_day, self.xctus_last_day)
+        # dummy read here to create the tcalmap, or it may fail when parallel thread case.
+        aa = self.suspend_info
+        aa = self.stock_info
+        aa = self.index_info
+        aa = self.fund_info
+        aa = self.tcalmap_day
+        aa = self.tcalmap_mon
 
-    def update_domain(self, force_mode=False):
-        super(XcDBUpdater, self).update_domain(force_mode)
-
-        self.suspend_info = self.get_suspend_d(self.xctus_first_day, self.xctus_last_day)
+    # def update_domain(self, force_mode=False):
+    #     super(XcDBUpdater, self).update_domain(force_mode)
+    #
+    #     self.suspend_info = self.get_suspend_d(self.xctus_first_day, self.xctus_last_day)
 
     def update_suspend_d(self, start, end, rollback=10):
         """
@@ -245,7 +255,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
 
         count = np.sum(~bvalid)
         db.commit()
-        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code),                       STOCK_ADJFACTOR_META)
+        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code), STOCK_ADJFACTOR_META)
         # 每次最大获取5000条记录
         max_units = 4000 // 23
         need_update = nadata_iter(bvalid, max_units)
@@ -317,6 +327,39 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
         db.commit()
         return count
 
+    def update_stock_xdxr(self, code, start, end):
+        """
+        update the stock xdxr, fill the prev_close column.
+        :param code:
+        :param start:
+        :param end:
+        :return:
+        """
+        data = self.netloader.set_stock_xdxr(code)
+        if data is None:
+            return
+
+        price = self.get_price_daily(code, start, end)
+        if price is None:
+            return
+
+        ffclose = price.close.ffill().shift(1)
+        for n, row in data.iterrows():
+            exdate = row['ex_date']
+            if pd.isna(exdate):
+                continue
+            exdate = pd.Timestamp(exdate)
+            if exdate not in ffclose.index:
+                # log.info('miss price data:{}-{}'.format(code, exdate))
+                continue
+            data.loc[n, 'prev_close'] = ffclose.loc[exdate]
+
+        db = self.facc(TusSdbs.SDB_STOCK_XDXR.value, STOCK_XDXR_META)
+        db.save(code, data)
+        db.commit()
+
+        return data
+
 
 g_updater: XcDBUpdater = None
 
@@ -325,9 +368,9 @@ def tusupdater_init() -> XcDBUpdater:
     global g_updater
     if g_updater is None:
         g_updater = XcDBUpdater()
-        try:
-            g_updater.init_domain()
-        except:
-            log.info('Init domain fail.')
-            pass
+        # try:
+        g_updater.init_domain()
+        # except:
+        #     log.info('Init domain fail.')
+        #     pass
     return g_updater
