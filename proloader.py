@@ -193,10 +193,10 @@ class XcNLPrice(object):
                         assert ((tt.hour == 9) & (tt.minute == 30))
 
                     v.loc[k - 1, 'open'] = v.loc[k, 'open']  # Open
-                    v.loc[k - 1, 'high'] = v.loc[(k - 1):(k + 1), 'high'].max()  # High
-                    v.loc[k - 1, 'low'] = v.loc[(k - 1):(k + 1), 'low'].min()  # low
-                    v.loc[k - 1, 'volume'] = v.loc[(k - 1):(k + 1), 'volume'].sum()  # volume
-                    v.loc[k - 1, 'amount'] = v.loc[(k - 1):(k + 1), 'amount'].sum()  # amount
+                    v.loc[k - 1, 'high'] = v.loc[(k - 1):k, 'high'].max()  # High
+                    v.loc[k - 1, 'low'] = v.loc[(k - 1):k, 'low'].min()  # low
+                    v.loc[k - 1, 'volume'] = v.loc[(k - 1):k, 'volume'].sum()  # volume
+                    v.loc[k - 1, 'amount'] = v.loc[(k - 1):k, 'amount'].sum()  # amount
 
                 mask = (np.arange(len(data)) % nbars) != (nbars - 1)
                 data = data[mask]

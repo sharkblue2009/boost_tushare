@@ -149,3 +149,10 @@ class XcLMDBAccessor(XcAccessor):
             cur.close()
 
         return out
+
+    def drop(self):
+        """
+        Drop the DB.
+        :return:
+        """
+        return self.txn.drop(self.db, delete=True)

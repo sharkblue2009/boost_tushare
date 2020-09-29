@@ -350,6 +350,19 @@ def cntus_check_stock_day(start_date='20150101'):
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
 
 
+def cntus_erase_stock_min(freq='5min'):
+    checker = tuschecker_init()
+
+    df_stock = checker.get_stock_info()
+
+    for k, stk in df_stock['ts_code'].items():
+        db = checker.facc((TusSdbs.SDB_MINUTE_PRICE.value + stk + freq), EQUITY_MINUTE_PRICE_META)
+        rc = db.drop()
+        rc1 = db.commit()
+
+    log.info('Drop all minutes data DB done.')
+
+
 def cntus_check_index_day(start_date='20150101'):
     checker = tuschecker_init()
 
@@ -478,6 +491,7 @@ def check_daily(start):
 def check_index_daily(start):
     cntus_check_index_day(start_date=start)
     click.echo('done')
+
 
 
 @click.command()
