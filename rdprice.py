@@ -188,6 +188,7 @@ class XcReaderPrice(XcDomain):
                     ii = ii.reindex(index=dayindex)
                 out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
+        db.commit()
         out = list(out.values())
         out = np.concatenate(out)
 

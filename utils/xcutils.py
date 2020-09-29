@@ -168,42 +168,7 @@ def QUARTER_END(date, trade_days=None):
     return None
 
 
-def session_day_to_min_tus_a(day_sess, freq='1min', market_open=True):
-    """
-    Convert day based session to high frequency session
-    :param day_sess:
-    :param freq:
-    :param market_open: if include 9:30
-    :return: DatetimeIndex
-    """
-    time_a = pd.Timedelta(hours=9, minutes=30)
-    time_b = pd.Timedelta(hours=11, minutes=30)
-    time_c = pd.Timedelta(hours=13, minutes=0)
-    time_d = pd.Timedelta(hours=15, minutes=0)
-
-    freq_c = freq.replace('min', 'Min')
-
-    if market_open:
-        sides = None
-    else:
-        sides = 'right'
-
-    out_sess = None
-    for x in day_sess:
-        ss1 = pd.date_range(start=x + time_a, end=x + time_b, freq=freq_c, closed=sides)
-        if out_sess is None:
-            out_sess = ss1
-        else:
-            out_sess = out_sess.append(ss1)
-        ss1 = pd.date_range(start=x + time_c, end=x + time_d, freq=freq_c, closed='right')
-        out_sess = out_sess.append(ss1)
-
-    return out_sess
-
-from pytz import UTC
-
-NANOSECONDS_PER_MINUTE = int(6e10)
-
+# from pytz import UTC
 
 def _compute_all_minutes(opens_in_ns, closes_in_ns, periods, sections):
     """
@@ -228,6 +193,9 @@ def _compute_all_minutes(opens_in_ns, closes_in_ns, periods, sections):
     out = np.concatenate(pieces).view('datetime64[ns]')
     # assert len(out) == num_minutes
     return out
+
+
+NANOSECONDS_PER_MINUTE = int(6e10)
 
 
 def session_day_to_min_tus(day_sess, freq='1min', market_open=False, tz=None):

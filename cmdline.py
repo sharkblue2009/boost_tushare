@@ -2,6 +2,7 @@ import os
 import math, sys
 
 import click
+import cmd
 import logbook
 import pandas as pd
 import numpy as np
@@ -42,11 +43,13 @@ def cntus_update_basic():
     return
 
 
-def cntus_update_stock_day(start_date='20150101'):
+def cntus_update_stock_day(start_date='20150101', type='L'):
     updater = tusupdater_init()
 
     df_stock = updater.get_stock_info()
-    df_stock = df_stock[df_stock.list_status == 'L']
+    df_stock = df_stock[df_stock.list_status == type]
+    if len(df_stock) == 0:
+        return
 
     def _fetch_day(symbols):
         results = {}
@@ -56,7 +59,7 @@ def cntus_update_stock_day(start_date='20150101'):
             t_end = ss['end_date']
             astype = ss['astype']
             results[sst] = updater.update_price_daily(sst, t_start, t_end, astype)
-            updater.update_stock_xdxr(sst, t_start, t_end)  # Froce reload xdxr from net
+            # updater.update_stock_xdxr(sst, t_start, t_end)  # Froce reload xdxr from net
             # updater.update_stock_adjfactor(stk, t_start, t_end)
 
         return results
@@ -86,11 +89,56 @@ def cntus_update_stock_day(start_date='20150101'):
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
 
 
-def cntus_update_stock_day_ext(start_date='20150101'):
+def cntus_update_stock_xdxr(start_date='20150101', type='L'):
     updater = tusupdater_init()
 
     df_stock = updater.get_stock_info()
-    df_stock = df_stock[df_stock.list_status == 'L']
+    df_stock = df_stock[df_stock.list_status == type]
+    if len(df_stock) == 0:
+        return
+
+    def _fetch_day(symbols):
+        results = {}
+        for ss in symbols:
+            sst = ss['code']
+            t_start = ss['start_date']
+            t_end = ss['end_date']
+            # astype = ss['astype']
+            updater.update_stock_xdxr(sst, t_start, t_end)  # Froce reload xdxr from net
+            results[sst] = 1
+            # updater.update_stock_adjfactor(stk, t_start, t_end)
+
+        return results
+
+    end_date = pd.Timestamp.today().strftime('%Y%m%d')
+
+    all_symbols = []
+    for k, stk in df_stock['ts_code'].items():
+        all_symbols.append({'code': stk, 'start_date': start_date, 'end_date': end_date, 'astype': 'E'})
+
+    all_symbols = list(reversed(all_symbols))
+    log.info('Downloading stocks xdxr data: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+
+    batch_size = 60
+    all_result = {}
+    for idx in range(0, len(all_symbols), batch_size):
+        progress_bar(idx, len(all_symbols))
+        symbol_batch = all_symbols[idx:idx + batch_size]
+
+        # result = _fetch_day(symbol_batch)
+        result = parallelize(_fetch_day, workers=20, splitlen=3)(symbol_batch)
+        all_result.update(result)
+    sys.stdout.write('\n')
+    log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
+
+
+def cntus_update_stock_day_ext(start_date='20150101', type='L'):
+    updater = tusupdater_init()
+
+    df_stock = updater.get_stock_info()
+    df_stock = df_stock[df_stock.list_status == type]
+    if len(df_stock) == 0:
+        return
 
     def _fetch_stock_ext(symbols):
         results = {}
@@ -120,6 +168,49 @@ def cntus_update_stock_day_ext(start_date='20150101'):
         progress_bar(idx, len(all_symbols))
         symbol_batch = all_symbols[idx:idx + batch_size]
         result = parallelize(_fetch_stock_ext, workers=20, splitlen=3)(symbol_batch)
+        all_result.update(result)
+    sys.stdout.write('\n')
+    log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
+
+
+def cntus_update_stock_min(start_date='20190101', type='L'):
+    updater = tusupdater_init()
+
+    df_stock = updater.get_stock_info()
+    df_stock = df_stock[df_stock.list_status == type]
+    if len(df_stock) == 0:
+        return
+
+    def _fetch_min(symbols):
+        results = {}
+        for ss in symbols:
+            stk = ss['code']
+            t_start = ss['start_date']
+            t_end = ss['end_date']
+            astype = ss['astype']
+            results[stk] = updater.update_price_minute(stk, t_start, t_end, freq='5min', astype=astype)
+
+        return results
+
+    end_date = pd.Timestamp.today().strftime('%Y%m%d')
+
+    log.info('Downloading stocks minute price: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+
+    all_symbols = []
+    for k, stk in df_stock['ts_code'].items():
+        all_symbols.append({'code': stk, 'start_date': start_date, 'end_date': end_date, 'astype': 'E'})
+
+    # all_symbols = all_symbols[::-1]
+
+    batch_size = 60
+    all_result = {}
+    for idx in range(0, len(all_symbols), batch_size):
+        progress_bar(idx, len(all_symbols))
+
+        symbol_batch = all_symbols[idx:idx + batch_size]
+
+        # result = _fetch_min(symbol_batch)
+        result = parallelize(_fetch_min, workers=20, splitlen=3)(symbol_batch)
         all_result.update(result)
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
@@ -155,47 +246,6 @@ def cntus_update_index_day(start_date):
         progress_bar(idx, len(all_symbols))
         symbol_batch = all_symbols[idx:idx + batch_size]
         result = parallelize(_fetch_day, workers=20, splitlen=3)(symbol_batch)
-        all_result.update(result)
-    sys.stdout.write('\n')
-    log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
-
-
-def cntus_update_stock_min(start_date='20190101'):
-    updater = tusupdater_init()
-
-    df_stock = updater.get_stock_info()
-    df_stock = df_stock[df_stock.list_status == 'L']
-
-    def _fetch_min(symbols):
-        results = {}
-        for ss in symbols:
-            stk = ss['code']
-            t_start = ss['start_date']
-            t_end = ss['end_date']
-            astype = ss['astype']
-            results[stk] = updater.update_price_minute(stk, t_start, t_end, freq='5min', astype=astype)
-
-        return results
-
-    end_date = pd.Timestamp.today().strftime('%Y%m%d')
-
-    log.info('Downloading stocks minute price: {}, {}-{}'.format(len(df_stock), start_date, end_date))
-
-    all_symbols = []
-    for k, stk in df_stock['ts_code'].items():
-        all_symbols.append({'code': stk, 'start_date': start_date, 'end_date': end_date, 'astype': 'E'})
-
-    # all_symbols = all_symbols[::-1]
-
-    batch_size = 60
-    all_result = {}
-    for idx in range(0, len(all_symbols), batch_size):
-        progress_bar(idx, len(all_symbols))
-
-        symbol_batch = all_symbols[idx:idx + batch_size]
-
-        # result = _fetch_min(symbol_batch)
-        result = parallelize(_fetch_min, workers=20, splitlen=3)(symbol_batch)
         all_result.update(result)
     sys.stdout.write('\n')
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
@@ -339,7 +389,6 @@ def cntus_check_index_day(start_date='20150101'):
 
 
 ####################################################################################
-import cmd
 
 
 class REPL(cmd.Cmd):
@@ -373,56 +422,60 @@ def update_basic():
 
 @click.command()
 @click.option("--start", default='20130101', )
-@click.option("--end", default=None, )
-def update_daily(start, end):
-    cntus_update_stock_day(start_date=start)
+@click.option("--type", default='L', )
+def update_daily(start, type):
+    cntus_update_stock_day(start_date=start, type=type)
     click.echo('done')
 
 
 @click.command()
 @click.option("--start", default='20130101', )
-@click.option("--end", default=None, )
-def update_daily_ext(start, end):
-    cntus_update_stock_day_ext(start_date=start)
+@click.option("--type", default='L', )
+def update_xdxr(start, type):
+    cntus_update_stock_xdxr(start_date=start, type=type)
+    click.echo('done')
+
+
+@click.command()
+@click.option("--start", default='20130101', )
+@click.option("--type", default='L', )
+def update_daily_ext(start, type):
+    cntus_update_stock_day_ext(start_date=start, type=type)
     click.echo('done')
 
 
 @click.command()
 @click.option("--start", default='20170101', )
-@click.option("--end", default=None, )
-def update_minute(start, end):
-    cntus_update_stock_min(start_date=start)
+@click.option("--type", default='L', )
+def update_minute(start, type):
+    cntus_update_stock_min(start_date=start, type=type)
     click.echo('done')
 
 
 @click.command()
 @click.option("--start", default='20170101', )
-@click.option("--end", default=None, )
-def update_index_daily(start, end):
+def update_index_daily(start):
     cntus_update_index_day(start_date=start)
     click.echo('done')
 
 
 @click.command()
 @click.option("--start", default='20170101', )
-@click.option("--end", default=None, )
-def update_index_minute(start, end):
+def update_index_minute(start):
     cntus_update_index_min(start_date=start)
     click.echo('done')
 
 
 @click.command()
 @click.option("--start", default='20130101', )
-@click.option("--end", default=None, )
-def check_daily(start, end):
+def check_daily(start):
     cntus_check_stock_day(start_date=start)
     click.echo('done')
 
 
 @click.command()
 @click.option("--start", default='20130101', )
-@click.option("--end", default=None, )
-def check_index_daily(start, end):
+def check_index_daily(start):
     cntus_check_index_day(start_date=start)
     click.echo('done')
 
@@ -491,6 +544,7 @@ def tsshow(days):
 
 first.add_command(update_basic)
 first.add_command(update_daily)
+first.add_command(update_xdxr)
 first.add_command(update_daily_ext)
 first.add_command(update_minute)
 first.add_command(update_index_daily)

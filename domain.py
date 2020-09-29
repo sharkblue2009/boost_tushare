@@ -240,32 +240,44 @@ class XcDomain(object):
         end_date = strdt_to_dt64(end_date)
         return start_date, end_date
 
-    def integrity_check_km_vday(self, dt, dtval, code=None, astype='E'):
+    def integrity_check_km_vday(self, dt, dtval, code=None, astype='E', check_mode=0):
         """
         monthly key with daily data. use suspend information to check if the data is integrate
         :param dt: date keys
         :param dtval:  data values, 1d ndarray, [volume]
         :param code:
+        :param astype:
+        :param check_mode: 0, length check only, other: fully check
         :return:
         """
         if dtval is None:
             return False
 
         trdidx = self.gen_dindex_monthly(dt, dt)
-        nbars_mon = len(trdidx)
+        nbarsmon = len(trdidx)
+
+        # 1. dtval length must equal nbars of the month
+        if len(dtval) != nbarsmon:
+            # log.info(code, dt)
+            return False
+
+        if check_mode == 0:
+            return True
+
+        # 2. dtval valid data length check with suspend info.
         susp = None
         if astype == 'E':
             susp_info = self.stock_suspend(code)
             if susp_info is None:
-                expect_size = nbars_mon
+                expect_size = nbarsmon
                 susp = None
             else:
                 # 股票存在停牌半天的情况，也会被计入suspend列表, 但suspend_timing列有值
                 susp = susp_info[(susp_info.index >= MONTH_START(dt)) & (susp_info.index <= MONTH_END(dt))]
                 susp = susp.loc[(susp['suspend_type'] == 'S') & (susp['suspend_timing'].isna()), :]
-                expect_size = nbars_mon - len(susp)
+                expect_size = nbarsmon - len(susp)
         else:
-            expect_size = nbars_mon
+            expect_size = nbarsmon
 
         vldlen = np.sum(~np.isnan(dtval))
         if expect_size == vldlen:
@@ -278,27 +290,37 @@ class XcDomain(object):
 
         return bvalid
 
-    def integrity_check_kd_vmin(self, dt, dtval, freq='1min', code=None, astype='E'):
+    def integrity_check_kd_vmin(self, dt, dtval, freq='1min', code=None, astype='E', check_mode=0):
         """
         daily key with minute data, use suspend information to judge if the data should exist,
         :param dt: date keys
         :param dtval:  data values, 1d-ndarray
         :param freq:
         :param code:
+        :param astype:
+        :param check_mode: 0, length check only, other: fully check
         :return:
         """
         if dtval is None:
             return False
 
-        nbars_day = XTUS_FREQ_BARS[freq]
+        nbarsday = XTUS_FREQ_BARS[freq]
+
+        # 1. dtval length must equal nbars of the day
+        if len(dtval) != nbarsday:
+            return False
+
+        if check_mode == 0:
+            return True
+
+        # 2. dtval valid data length check with suspend info.
         susp = None
         vldlen = np.sum(~np.isnan(dtval))
-
         if astype == 'E':
             susp_info = self.stock_suspend(code)
 
             if susp_info is None:
-                minbars = nbars_day
+                minbars = nbarsday
             else:
                 susp = susp_info.loc[(susp_info['suspend_type'] == 'S') & (susp_info.index == dt), :]
                 if not susp.empty:
@@ -307,24 +329,25 @@ class XcDomain(object):
                         # 当日全天停牌
                         # 部分品种，停牌数据有误。目前发现这种情况存在于退市/暂停上市的股票。
                         # 例如： 300216.SZ， 300431.SZ，这时nbars=vldlen视为有效。
-                        minbars = nbars_day
+                        minbars = nbarsday
                     else:
                         # 部分时间停牌
                         minbars = 1
                 else:
-                    minbars = nbars_day
+                    minbars = nbarsday
                     # Fixme, 如果部分时间没有交易，vldlen可能小于nbars
         else:
-            minbars = nbars_day
+            minbars = nbarsday
 
-        if nbars_day >= vldlen >= minbars:
+        # dtval length is valid.
+        if nbarsday >= vldlen >= minbars:
             return True
-        else:
-            if vldlen > 0:
-                log.info('[!KDVMIN]-: {}:: {}-{} '.format(code, dt, vldlen))
-            if susp is not None and vldlen > 0:
-                log.info(susp)
-            return False
+
+        if vldlen > 0:
+            log.info('[!KDVMIN]-: {}:: {}-{} '.format(code, dt, vldlen))
+        if susp is not None and vldlen > 0:
+            log.info(susp)
+        return False
 
     def stock_suspend(self, code):
         try:

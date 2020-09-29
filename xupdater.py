@@ -133,9 +133,10 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
             dtkey = dt64_to_strdt(dd)
             val = db.load(dtkey, raw_mode=True)
             if val is not None:
-                bvalid[n] = True
                 if n >= len(mmdts) - rollback:
-                    bvalid[n] = self.integrity_check_km_vday(dd, val[:, 4], code)
+                    bvalid[n] = self.integrity_check_km_vday(dd, val[:, 4], code, check_mode=1)
+                else:
+                    bvalid[n] = self.integrity_check_km_vday(dd, val[:, 4], code, check_mode=0)
             else:
                 bvalid[n] = False
             # TODO: 数据缓存中最后一个数据，也应进行完整性检查。
@@ -192,9 +193,10 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
             dtkey = dt64_to_strdt(dd)
             val = db.load(dtkey, raw_mode=True)
             if val is not None:
-                bvalid[n] = True
                 if n >= len(mmdts) - rollback:
-                    bvalid[n] = self.integrity_check_kd_vmin(dd, val[:, 4], freq=freq, code=code)
+                    bvalid[n] = self.integrity_check_kd_vmin(dd, val[:, 4], freq=freq, code=code, check_mode=1)
+                else:
+                    bvalid[n] = self.integrity_check_kd_vmin(dd, val[:, 4], freq=freq, code=code, check_mode=0)
             else:
                 bvalid[n] = False
 
@@ -247,9 +249,10 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
             dtkey = dt64_to_strdt(dd)
             val = db.load(dtkey, raw_mode=True)
             if val is not None:
-                bvalid[n] = True
                 if n >= len(mmdts) - rollback:
-                    bvalid[n] = self.integrity_check_km_vday(dd, val[:, 0], code)
+                    bvalid[n] = self.integrity_check_km_vday(dd, val[:, 0], code, check_mode=1)
+                else:
+                    bvalid[n] = self.integrity_check_km_vday(dd, val[:, 0], code, check_mode=0)
             else:
                 bvalid[n] = False
 
@@ -296,9 +299,10 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
             dtkey = dt64_to_strdt(dd)
             val = db.load(dtkey, raw_mode=True)
             if val is not None:
-                bvalid[n] = True
                 if n >= len(mmdts) - rollback:
-                    bvalid[n] = self.integrity_check_km_vday(dd, val[:, 0], code)
+                    bvalid[n] = self.integrity_check_km_vday(dd, val[:, 0], code, check_mode=1)
+                else:
+                    bvalid[n] = self.integrity_check_km_vday(dd, val[:, 0], code, check_mode=0)
             else:
                 bvalid[n] = False
 

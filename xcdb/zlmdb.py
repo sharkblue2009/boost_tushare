@@ -85,7 +85,8 @@ class XcLMDBAccessor(XcAccessor):
         self.master = master_db
         self.db = master_db.get_sdb(sdb)
         self.metadata = metadata
-        self.txn = self.master.env.begin(db=self.db, write=True, parent=None)
+        write_mode = not readonly
+        self.txn = self.master.env.begin(db=self.db, write=write_mode, parent=None)
         return
 
     def __del__(self):

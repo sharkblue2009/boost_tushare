@@ -40,7 +40,6 @@ class XcReaderBasic(XcDomain):
 
         db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_DTIDX_META)
         self._cal_day = db.load(TusKeys.CAL_INDEX_DAY.value)
-        # db = self.facc(TusSdbs.SDB_CALENDAR.value, CALENDAR_D_IDX_META)
         self._cal_1min = db.load(TusKeys.CAL_INDEX_1MIN.value)
         self._cal_5min = db.load(TusKeys.CAL_INDEX_5MIN.value)
         db.commit()
@@ -53,15 +52,23 @@ class XcReaderBasic(XcDomain):
         :param force_mode:
         :return:
         """
+        tcal_old = self.get_trade_cal(IOFLAG.READ_DBONLY)
         if force_mode:
             log.info('Update trading calendar...')
             tcal = self.get_trade_cal(IOFLAG.READ_NETDB)
         else:
             tcal = self.get_trade_cal(IOFLAG.READ_XC)
 
+        if tcal_old is not None and tcal is not None:
+            min_size = min(len(tcal_old), len(tcal))
+            if (tcal_old.values[:min_size] != tcal.values[:min_size]).any():
+                log.info("trade cal mismatch!!!")
+                # return
+
         # Align the last/first day to trade calendar
         tcday = pd.to_datetime(tcal.tolist(), format='%Y%m%d').sort_values(ascending=True)
-        tcday = tcday[(self.xctus_first_day <= tcday) & (tcday <= self.xctus_last_day)]
+        # Note: need to align the month boarder
+        tcday = tcday[(MONTH_START(self.xctus_first_day) <= tcday) & (tcday <= MONTH_END(self.xctus_last_day))]
         db_first_day = tcday[0]
         db_last_day = tcday[-1]
         self.xctus_first_day = db_first_day
