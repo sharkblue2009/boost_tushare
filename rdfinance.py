@@ -1,20 +1,23 @@
 """
 财务数据，每季度更新
 """
-from .xcdb.xcdb import *
-from .schema import *
-from .proloader import TusNetLoader
-from .utils.xcutils import QUARTER_END
 from .apiwrapper import api_call
+from .proloader import TusNetLoader
+from .layout import *
+from .utils.xcutils import *
+from .xcdb.xcdb import *
+from .domain import XcDomain
 
 
-class XcReaderFinance(object):
+class XcReaderFinance(XcDomain):
     """
     Finance information loader
     """
-
     master_db = None
     netloader: TusNetLoader = None
+
+    def __init__(self):
+        super(XcReaderFinance, self).__init__()
 
     @api_call
     def get_income(self, code, period, flag=IOFLAG.READ_XC):
@@ -29,8 +32,7 @@ class XcReaderFinance(object):
         report_date = QUARTER_END(tperiod)
         dtkey = report_date.strftime(DATE_FORMAT)
 
-        db = self.facc((TusSdbs.SDB_STOCK_FIN_INCOME.value + code),
-                       STOCK_FIN_INCOME_META)
+        db = self.facc((TusSdbs.SDB_STOCK_FIN_INCOME.value + code), STOCK_FIN_INCOME_META)
         if flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val
@@ -53,8 +55,7 @@ class XcReaderFinance(object):
         report_date = QUARTER_END(tperiod)
         dtkey = report_date.strftime(DATE_FORMAT)
 
-        db = self.facc((TusSdbs.SDB_STOCK_FIN_BALANCE.value + code),
-                       STOCK_FIN_BALANCE_META)
+        db = self.facc((TusSdbs.SDB_STOCK_FIN_BALANCE.value + code), STOCK_FIN_BALANCE_META)
         if flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val
@@ -77,8 +78,7 @@ class XcReaderFinance(object):
         report_date = QUARTER_END(tperiod)
         dtkey = report_date.strftime(DATE_FORMAT)
 
-        db = self.facc((TusSdbs.SDB_STOCK_FIN_CASHFLOW.value + code),
-                       STOCK_FIN_CASHFLOW_META, readonly=True)
+        db = self.facc((TusSdbs.SDB_STOCK_FIN_CASHFLOW.value + code), STOCK_FIN_CASHFLOW_META)
         if flag == IOFLAG.READ_DBONLY:
             val = db.load(dtkey)
             return val

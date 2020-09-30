@@ -39,8 +39,8 @@ class TestTusReader(unittest.TestCase):
         print(df.iloc[-10:])
         df = get_fund_info()
         print(df.iloc[-10:])
-        df = get_trade_cal()
-        print(df.iloc[-10:])
+        df = self.reader.trade_cal
+        print(df[-10:])
 
     def test_index_weight(self):
         code = '399300.SZ'
@@ -140,15 +140,18 @@ class TestTusReader(unittest.TestCase):
         print(timeit.Timer(lambda: get_price_daily('002465.SZ', '20150101', '20200303')).timeit(10))
         print(timeit.Timer(lambda: get_price_daily('002465.SZ', '20150101', '20200303')).timeit(10))
 
-        print(timeit.Timer(lambda: get_price_minute('002465.SZ', '20190101', '20200303')).timeit(10))
+        # print(timeit.Timer(lambda: get_price_minute('002465.SZ', '20190101', '20200303')).timeit(10))
 
     def test_benchmark_all(self):
+        print('benchmark reading daily...')
         # print(timeit.Timer(lambda: get_all_price_day_parallel()).timeit(1))
         print(timeit.Timer(lambda: get_all_price_day()).timeit(1))
-        #
+        # print('reading dayinfo...')
+        # print(timeit.Timer(lambda: get_all_dayinfo()).timeit(1))
         # print(timeit.Timer(lambda: get_all_dayinfo()).timeit(1))
 
-        # print(timeit.Timer(lambda: get_all_price_min('20190501', '20200301')).timeit(1))
+        print('reading minute...')
+        print(timeit.Timer(lambda: get_all_price_min('20190501', '20200501')).timeit(1))
         pass
 
 

@@ -14,6 +14,9 @@ df = pro.index_weight(index_code='399300.SZ', trade_date='20191031')
 df = ts.pro_bar('000785.SZ', asset='E', start_date=start_date, end_date=end_date, freq='D')
 df = ts.pro_bar('000785.SZ', asset='E', start_date=start_date, end_date=end_date, freq='5min')
 
+df = pro.daily_basic(ts_code='600685.SH', start_date='20190807', end_date='20190809')
+df = ts.pro_bar('600685.SH', asset='E', start_date='20190808', end_date='20190809', freq='1min')
+
 df = pro.daily_basic(ts_code='000785.SZ', start_date=start_date, end_date=end_date,
                      fields=[
                          'trade_date',
@@ -34,3 +37,6 @@ df = pro.daily_basic(ts_code='000785.SZ', start_date=start_date, end_date=end_da
                          'total_mv',
                          'circ_mv',
                      ])
+
+
+df = pro.dividend(ts_code='600848.SH')

@@ -1,26 +1,32 @@
 """
 行情数据，每日更新
 """
-import pandas as pd
 
 from .apiwrapper import api_call
 from .proloader import TusNetLoader
-from .schema import *
+from .layout import *
 from .utils.xcutils import *
 # from .utils.memoize import lazyval
 from .xcdb.xcdb import *
+from .domain import XcDomain
 
 
-class XcReaderPrice(object):
+class XcReaderPrice(XcDomain):
     """
     行情数据
     """
     master_db = None
-    trade_cal_index = None
+    domain: XcDomain = None
+
     netloader: TusNetLoader = None
 
+    def __init__(self):
+        super(XcReaderPrice, self).__init__()
+
     @api_call
-    def get_price_daily(self, code, start: str, end: str, astype=None, flag=IOFLAG.READ_XC):
+    def get_price_daily(self, code, start: [str or pd.Timestamp or np.datetime64],
+                        end: [str or pd.Timestamp or np.datetime64],
+                        astype='E', flag=IOFLAG.READ_XC):
         """
         按月存取股票的日线数据
         1. 如当月停牌无交易，则存入空数据(或0)
@@ -32,63 +38,57 @@ class XcReaderPrice(object):
             1. 对于Index, Fund, 由于不存在停牌情况，因此价格数据的trade_date和当月的trade_calendar能匹配，则数据完整
             2. 对于股票，由于可能停牌，因此，月度价格数据的trade_date加上suspend_date, 和当月trade_calendar匹配，则数据完整
         :param code:
-        :param start:
+        :param start: start date: [str or pd.Timestamp or np.datetime64]
         :param end:
+        :param astype:
+        :param flag:
         :return:
         """
         if astype is None:
             astype = self.asset_type(code)
 
-        tstart = pd.Timestamp(start)
-        tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, astype), self.trade_cal_index)
-        if len(vdates) == 0:
-            return None
+        mmdts = self.gen_keys_monthly(start, end, code, astype)
+        if mmdts is None:
+            return
 
         db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
-
         out = {}
-
-        if flag == IOFLAG.READ_XC:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+        for dd in mmdts:
+            dtkey = dt64_to_strdt(dd)
+            if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     out[dtkey] = val
                     continue
+            if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_price_daily(code, MONTH_START(dd), MONTH_END(dd), astype)
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
-        elif flag == IOFLAG.READ_DBONLY:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                if val is not None:
-                    out[dtkey] = val
-                    continue
-        elif flag == IOFLAG.READ_NETDB:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                ii = self.netloader.set_price_daily(code, MONTH_START(dd), MONTH_END(dd), astype)
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
+                dayindex = self.gen_dindex_monthly(dd, dd)
+                if ii is None:
+                    ii = pd.DataFrame(index=dayindex, columns=EQUITY_DAILY_PRICE_META['columns'], dtype='f8')
+                else:
+                    ii = ii.set_index('trade_date', drop=True)
+                    ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
+                    ii = ii.reindex(index=dayindex)
+                out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
-        # out = db.load_range(vdates[0].strftime(DATE_FORMAT), vdates[-1].strftime(DATE_FORMAT))
+        db.commit()
 
         out = list(out.values())
         out = np.vstack(out)
         all_out = pd.DataFrame(data=out, columns=EQUITY_DAILY_PRICE_META['columns'])
 
-        all_out = all_out.set_index('trade_date', drop=True)
-        all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
-        all_out = all_out.sort_index(ascending=True)
-        all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
+        alldays = self.gen_dindex_monthly(mmdts[0], mmdts[-1])
+        all_out = all_out.set_index(alldays)
+        # all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
     @api_call
-    def get_price_minute(self, code, start, end, freq='1min', astype='E', merge_open=True, resample=False,
-                         flag=IOFLAG.READ_XC):
+    def get_price_minute(self, code, start, end, freq='5min', astype='E', flag=IOFLAG.READ_XC):
         """
         按日存取股票的分钟线数据
-        1. 如当日停牌无交易，则存入空数据
+        Note: 停牌时，pro_bar对于分钟K线，仍然能取到数据，返回的OHLC是pre_close值， vol值为0.
+        但对于停牌时的日线， 则没有数据。
+        1. 如当日停牌无交易，则存入空数据(tushare停牌时分钟数据返回ffill值，vol=0)
         2. 股票未上市，或已退市，则对应日键值不存在
         3. 当日有交易，则存储交易日的数据
         4. 如交易日键值不存在，但股票状态是正常上市，则该月数据需要下载
@@ -98,87 +98,52 @@ class XcReaderPrice(object):
             1. 股票， 要么数据完整241条数据，要么为空
             2. 指数和基金，无停牌，因此数据完整。
         :param code:
-        :param start:
+        :param start: start date: [str or pd.Timestamp or np.datetime64]
         :param end:
         :param freq:
         :param astype: asset type. 'E' for stock, 'I' for index, 'FD' for fund.
-        :param merge_open: True, merge first 9:30 Kbar to follow KBar.
-        :param resample: if use 1Min data resample to others
+        :param flag:
         :return:
         """
-        if freq not in ['1min', '5min', '15min', '30min', '60min', '120m']:
+        if freq not in XTUS_FREQS:
             return None
+        mmdts = self.gen_keys_daily(start, end, code, 'E')
+        if mmdts is None:
+            return
 
-        if resample:
-            curfreq = '1min'
-        else:
-            curfreq = freq
-
-        tstart = pd.Timestamp(start)
-        tend = pd.Timestamp(end)
-        vdates = gen_keys_daily(tstart, tend, self.asset_lifetime(code, astype),
-                                self.trade_cal_index)
-        if len(vdates) == 0:
-            return None
-
-        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + curfreq), EQUITY_MINUTE_PRICE_META,
-                       readonly=True)
-
+        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq), EQUITY_MINUTE_PRICE_META)
         out = {}
-
-        if flag == IOFLAG.READ_XC:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+        for dd in mmdts:
+            dtkey = dt64_to_strdt(dd)
+            if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     out[dtkey] = val
                     continue
-                ii = self.netloader.set_price_minute(code, dd, dd, curfreq, astype)
+            if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
+                ii = self.netloader.set_price_minute(code, dd, dd, freq, astype)
+                minindex = self.gen_mindex_daily(dd, dd, freq)
                 if ii is None:
-                    continue
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
-        elif flag == IOFLAG.READ_DBONLY:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                if val is not None:
-                    out[dtkey] = val
-                    continue
-        elif flag == IOFLAG.READ_NETDB:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                ii = self.netloader.set_price_minute(code, dd, dd, curfreq, astype)
-                if ii is None:
-                    continue
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
-
-        if merge_open:
-            # Handle the first row of every day. (the Kbar at 9:30)
-            tmpout1 = {}
-            for k, v in out.items():
-                tmpout1[k] = v
-                if v is not None:
-                    if v.shape[0] > 2:
-                        v[-2, 1] = v[-1, 1]  # Open
-                        v[-2, 2] = np.max(v[-2:, 2])  # High
-                        v[-2, 3] = np.min(v[-2:, 3])  # low
-                        v[-2, 5] = np.sum(v[-2:, 5])  # volume
-                        v[-2, 6] = np.sum(v[-2:, 6])  # amount
-                        tmpout1[k] = v[:-1, :]
-            out = tmpout1
+                    ii = pd.DataFrame(index=minindex, columns=EQUITY_MINUTE_PRICE_META['columns'], dtype='f8')
+                else:
+                    ii = ii.set_index('trade_time', drop=True)
+                    ii.index = pd.to_datetime(ii.index, format=DATETIME_FORMAT)
+                    ii = ii.reindex(index=minindex)
+                    if (ii.volume == 0.0).all():
+                        # 如果全天无交易，vol == 0, 则清空df.
+                        ii.loc[:, :] = np.nan
+                out[dtkey] = db.save(dtkey, ii, raw_mode=True)
+        db.commit()
 
         out = list(out.values())
-        out = np.concatenate(out)
+        out = np.vstack(out)
         all_out = pd.DataFrame(data=out, columns=EQUITY_MINUTE_PRICE_META['columns'])
+        allmins = self.gen_mindex_daily(mmdts[0], mmdts[-1], freq)
+        all_out = all_out.set_index(allmins)
 
-        all_out = all_out.set_index('trade_time', drop=True)
-        all_out.index = pd.to_datetime(all_out.index, format=DATETIME_FORMAT)
-        all_out = all_out.sort_index(ascending=True)
-
-        if resample:
-            cc = {'1min': 1, '5min': 5, '15min': 15, '30min': 30, '60min': 60, '120min': 120}
-            periods = cc[freq]
-            all_out = price1m_resample(all_out, periods, market_open=True)
+        # if resample:
+        #     periods = cc[freq]
+        #     all_out = price1m_resample(all_out, periods, market_open=True)
 
         # if (len(all_out) % 241) != 0:
         #     # Very slow
@@ -201,45 +166,38 @@ class XcReaderPrice(object):
         :param end:
         :return:
         """
-        tstart = pd.Timestamp(start)
-        tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
-        if len(vdates) == 0:
+        mmdts = self.gen_keys_monthly(start, end, code, 'E')
+        if mmdts is None:
             return
 
         db = self.facc(TusSdbs.SDB_STOCK_DAILY_INFO.value + code, STOCK_DAILY_INFO_META)
         out = {}
-
-        if flag == IOFLAG.READ_XC:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+        for dd in mmdts:
+            dtkey = dt64_to_strdt(dd)
+            if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     out[dtkey] = val
                     continue
+            if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_stock_daily_info(code, MONTH_START(dd), MONTH_END(dd))
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
-        elif flag == IOFLAG.READ_DBONLY:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                if val is not None:
-                    out[dtkey] = val
-                    continue
-        elif flag == IOFLAG.READ_NETDB:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                ii = self.netloader.set_stock_daily_info(code, MONTH_START(dd), MONTH_END(dd))
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
+                dayindex = self.gen_dindex_monthly(dd, dd)
+                if ii is None:
+                    ii = pd.DataFrame(index=dayindex, columns=STOCK_DAILY_INFO_META['columns'], dtype='f8')
+                else:
+                    ii = ii.set_index('trade_date', drop=True)
+                    ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
+                    ii = ii.reindex(index=dayindex)
+                out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
+        db.commit()
         out = list(out.values())
         out = np.concatenate(out)
-        all_out = pd.DataFrame(data=out, columns=STOCK_DAILY_INFO_META['columns'])
 
-        all_out = all_out.set_index('trade_date', drop=True)
-        all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
-        all_out = all_out.sort_index(ascending=True)
-        all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
+        all_out = pd.DataFrame(data=out, columns=STOCK_DAILY_INFO_META['columns'])
+        alldays = self.gen_dindex_monthly(mmdts[0], mmdts[-1])
+        all_out = all_out.set_index(alldays)
+        # all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
     @api_call
@@ -255,46 +213,37 @@ class XcReaderPrice(object):
         :param end:
         :return:
         """
-        tstart = pd.Timestamp(start)
-        tend = pd.Timestamp(end)
-        vdates = gen_keys_monthly(tstart, tend, self.asset_lifetime(code, 'E'), self.trade_cal_index)
-        if len(vdates) == 0:
+        mmdts = self.gen_keys_monthly(start, end, code, 'E')
+        if mmdts is None:
             return
 
-        db = self.facc(TusSdbs.SDB_STOCK_ADJFACTOR.value + code, STOCK_ADJFACTOR_META, readonly=True)
+        db = self.facc(TusSdbs.SDB_STOCK_ADJFACTOR.value + code, STOCK_ADJFACTOR_META)
         out = {}
-
-        if flag == IOFLAG.READ_XC:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
+        for dd in mmdts:
+            dtkey = dt64_to_strdt(dd)
+            if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
+                val = db.load(dtkey, raw_mode=True)
                 if val is not None:
                     out[dtkey] = val
                     continue
+            if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_stock_adjfactor(code, MONTH_START(dd), MONTH_END(dd))
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
-        elif flag == IOFLAG.READ_DBONLY:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                if val is not None:
-                    out[dtkey] = val
-                    continue
-        elif flag == IOFLAG.READ_NETDB:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                ii = self.netloader.set_stock_adjfactor(code, MONTH_START(dd), MONTH_END(dd))
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
-
+                dayindex = self.gen_dindex_monthly(dd, dd)
+                if ii is None:
+                    ii = pd.DataFrame(index=dayindex, columns=STOCK_ADJFACTOR_META['columns'], dtype='f8')
+                else:
+                    ii = ii.set_index('trade_date', drop=True)
+                    ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
+                    ii = ii.reindex(index=dayindex)
+                out[dtkey] = db.save(dtkey, ii, raw_mode=True)
+        db.commit()
         out = list(out.values())
         out = np.concatenate(out)
         all_out = pd.DataFrame(data=out, columns=STOCK_ADJFACTOR_META['columns'])
 
-        # all_out = pd.concat(out)
-        all_out = all_out.set_index('trade_date', drop=True)
-        all_out.index = pd.to_datetime(all_out.index, format=DATE_FORMAT)
-        all_out = all_out.sort_index(ascending=True)
-        all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
+        alldays = self.gen_dindex_monthly(mmdts[0], mmdts[-1])
+        all_out = all_out.set_index(alldays)
+        # all_out = all_out[(all_out.index >= tstart) & (all_out.index <= tend)]
         return all_out
 
     @api_call
@@ -307,18 +256,16 @@ class XcReaderPrice(object):
         db = self.facc(TusSdbs.SDB_STOCK_XDXR.value, STOCK_XDXR_META)
 
         kk = code
-        if flag == IOFLAG.READ_XC:
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             if val is not None:
                 return val
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
+            log.info('!!! xdxr info not exist, please use updater to download it first.')
             info = self.netloader.set_stock_xdxr(code)
-            return db.save(kk, info)
-        elif flag == IOFLAG.READ_DBONLY:
-            val = db.load(kk)
-            return val
-        elif flag == IOFLAG.READ_NETDB:
-            info = self.netloader.set_stock_xdxr(code)
-            return db.save(kk, info)
+            if info is not None:
+                val = db.save(kk, info)
+                return val
         return
 
     @api_call
@@ -329,89 +276,17 @@ class XcReaderPrice(object):
         :param code:
         :return:
         """
-        db = self.facc(TusSdbs.SDB_STOCK_SUSPEND.value, STOCK_SUSPEND_META, readonly=True)
+        db = self.facc(TusSdbs.SDB_STOCK_SUSPEND.value, STOCK_SUSPEND_META)
 
         kk = code
-        if flag == IOFLAG.READ_XC:
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_DBONLY:
             val = db.load(kk)
             if val is not None:
                 return val
+
+        if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_stock_suspend(code)
-            return db.save(kk, info)
-        elif flag == IOFLAG.READ_DBONLY:
-            val = db.load(kk)
-            return val
-        elif flag == IOFLAG.READ_NETDB:
-            info = self.netloader.set_stock_suspend(code)
-            return db.save(kk, info)
+            if info is not None:
+                return db.save(kk, info)
+
         return
-
-    @api_call
-    def get_suspend_d(self, start='20100101', end='21000101', flag=IOFLAG.READ_XC):
-        """
-        每日所有股票停复牌信息
-        注： 股票存在停牌半天的情况。但也会在suspend列表中体现
-        :param code:
-        :return:
-        """
-        tstart = pd.Timestamp(start)
-        tend = pd.Timestamp(end)
-        trade_cal = self.trade_cal_index
-        vdates = trade_cal[(trade_cal >= tstart) & (trade_cal <= tend)]
-        if len(vdates) == 0:
-            return None
-
-        db = self.facc(TusSdbs.SDB_SUSPEND_D.value, SUSPEND_D_META)
-        out = {}
-
-        if flag == IOFLAG.READ_DBONLY:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                if val is not None:
-                    out[dtkey] = val
-                    continue
-        elif flag == IOFLAG.READ_XC:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                val = db.load(dtkey, KVTYPE.TPV_NARR_2D)
-                if val is not None:
-                    out[dtkey] = val
-                    continue
-                ii = self.netloader.set_suspend_d(dd)
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
-        elif flag == IOFLAG.READ_NETDB:
-            for dd in vdates:
-                dtkey = dd.strftime(DATE_FORMAT)
-                ii = self.netloader.set_suspend_d(dd)
-                out[dtkey] = db.save(dtkey, ii, KVTYPE.TPV_NARR_2D)
-
-        out = list(out.values())
-        out = np.vstack(out)
-        all_out = pd.DataFrame(data=out, columns=SUSPEND_D_META['columns'])
-        all_out['suspend_type'] = all_out['suspend_type'].astype(str)
-        # all_out['suspend_timing'] = all_out['suspend_timing'].astype(str)
-
-        all_out = all_out.set_index(['trade_date', 'ts_code'], drop=True)
-        all_out.index.set_levels(pd.to_datetime(all_out.index.levels[0], format=DATE_FORMAT), level=0, inplace=True)
-        all_out = all_out.sort_index(axis=0, level=0, ascending=True)
-        all_out = all_out.loc[pd.IndexSlice[tstart:tend, :]]
-        # mask = all_out.index.map(lambda x: (x[0]>=tstart) & (x[0]<=tend))
-        # all_out = all_out.loc[mask]
-
-        self.suspend_info = all_out  # read the suspend info into cache
-        return all_out
-
-    def stock_suspend(self, code):
-        try:
-            info = self.suspend_info.loc[pd.IndexSlice[:, code], :]
-            info = info.droplevel(1)  # Drop the tscode index
-            return info
-        except:
-            return None
-
-    # @lazyval
-    # def suspend_info(self):
-    #     """"""
-    #     log.info('Load stock suspend info.')
-    #     return self.get_suspend_d()

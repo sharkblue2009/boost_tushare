@@ -1,18 +1,9 @@
-import copy
-from logbook import Logger
-import pickle
-from functools import partial
-from enum import IntEnum
-
-import pandas as pd
-import numpy as np
 import lmdb
-
 from .xcdb import *
-
+from logbook import Logger
 log = Logger('lmdb')
 
-LMDB_NAME = 'D:/Database/stock_db/TUS_LMDB'
+LMDB_NAME = 'D:/Database/stock_db/TusDBv2'
 
 
 class XcLMDB(XCacheDB):
@@ -27,9 +18,10 @@ class XcLMDB(XCacheDB):
         if not self.name in DBS_OPENED.keys():
             log.info('Open DB: {}'.format(self.name))
             DBS_OPENED[self.name] = lmdb.open(
-                self.name, create=True, max_dbs=1000000, readonly=readonly, map_size=64 * 0x40000000, **kwargs)
+                self.name, create=True, max_dbs=1000000, readonly=readonly, map_size=32 * 0x40000000, **kwargs)
         else:
-            raise FileExistsError('Already opened')
+            log.info("Already Opened, use exist one")
+            # raise FileExistsError('Already opened')
 
         self.env = DBS_OPENED[self.name]
         self.show()
@@ -47,20 +39,24 @@ class XcLMDB(XCacheDB):
         self.close()
 
     def show(self):
-        print(self.env.info())
-        # print(self.env.stat())
-        # print(self.env.max_key_size())
+        info = self.env.info()
+        log.info('DB Size is: {}MB'.format(info['map_size']//0x100000))
+        stat = self.env.stat()
+        log.info(stat)
+        # info = self.env.max_key_size()
+        # log.info(info)
 
     @staticmethod
     def _get_sdb(master_db, sdb_path: str):
-        cur_db = master_db.open_db(force_bytes(sdb_path))
+        cur_db = master_db.open_db(force_bytes(sdb_path), create=True)
         return cur_db
 
     def get_sdb(self, sdb_path: str):
         try:
             # log.info('>>SDB>>{}'.format(sdb_path))
             sdb = self._get_sdb(self.env, sdb_path)
-        except:
+        except Exception as e:
+            print(e)
             print('sdb_path not exist: {}'.format(sdb_path))
             raise ValueError('create sdb error')
 
@@ -76,16 +72,23 @@ class XcLMDBAccessor(XcAccessor):
     Note: read-write transactions may be nested.
         write transition begin-commit block can not insert other transition without nesting.
 
+    Lmdb Txn begin and commit need to be paired. so every API called Accessor [Init] must call [DEL/Commit]
+                before next [Init].
+
+    db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
+    ...
+    ...
+    del db/ db.commit()
+
+    a Readonly transaction block can be reentrant by multi-thread, but a writeable txn-block cannot.
     """
-    metadata = {}
 
     def __init__(self, master_db: XcLMDB, sdb: str, metadata=None, readonly=False):
         self.master = master_db
         self.db = master_db.get_sdb(sdb)
-        self.tpkey = metadata['tpk']
-        self.tpval = metadata['tpv']
         self.metadata = metadata
-        self.txn = self.master.env.begin(db=self.db, write=True, parent=None)
+        write_mode = not readonly
+        self.txn = self.master.env.begin(db=self.db, write=write_mode, parent=None)
         return
 
     def __del__(self):
@@ -95,11 +98,11 @@ class XcLMDBAccessor(XcAccessor):
         except:
             pass
 
-    def load(self, key, vtype=None):
+    def load(self, key, raw_mode=False):
         """
 
         :param key:
-        :param vtype: override value type for output.
+        :param raw_mode: override value type for output.
         :return:
         """
         # self.txn = self.master.env.begin(db=self.db, write=True)
@@ -107,16 +110,16 @@ class XcLMDBAccessor(XcAccessor):
         if key:
             val = self.txn.get(key)
             if val:
-                return self.to_val_out(val, vtype)
+                return self.to_val_out(val, raw_mode)
         return None
 
-    def save(self, key, val, vtype=None):
+    def save(self, key, val, raw_mode=False):
         """"""
         # self.txn = self.master.env.begin(db=self.db, write=True)
         if val is None:
             return
         key = self.to_db_key(key)
-        dbval, appval = self.to_val_in(val, vtype)
+        dbval, appval = self.to_val_in(val, raw_mode)
         if key and dbval:
             self.txn.put(key, dbval)
         return appval
@@ -130,7 +133,7 @@ class XcLMDBAccessor(XcAccessor):
     def commit(self):
         self.txn.commit()
 
-    def load_range(self, kstart, kend, vtype):
+    def load_range(self, kstart, kend, raw_mode):
         """"""
         out = {}
         with self.txn.cursor(self.db) as cur:
@@ -139,7 +142,7 @@ class XcLMDBAccessor(XcAccessor):
                 while True:
                     k, v = cur.item()
                     sk = force_string(k)
-                    out[sk] = self.to_val_out(v, vtype)
+                    out[sk] = self.to_val_out(v, raw_mode)
                     if sk >= kend:
                         break
                     vld = cur.next()
@@ -148,3 +151,10 @@ class XcLMDBAccessor(XcAccessor):
             cur.close()
 
         return out
+
+    def drop(self):
+        """
+        Drop the DB.
+        :return:
+        """
+        return self.txn.drop(self.db, delete=True)

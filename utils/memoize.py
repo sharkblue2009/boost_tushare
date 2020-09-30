@@ -40,7 +40,7 @@ class lazyval(object):
     AttributeError: Can't set read-only attribute.
     >>> c.val
     'val'
-    >>> C.val.update(c)
+    >>> C.val.renew(c)
     """
     def __init__(self, get):
         self._get = get
@@ -61,10 +61,10 @@ class lazyval(object):
     def __delitem__(self, instance):
         del self._cache[instance]
 
-    def update(self, instance):
+    def renew(self, instance):
         if instance is None:
             return self
-        # print(self._cache[instance])
+        print('__renew__', self._cache[instance])
         self._cache[instance] = val = self._get(instance)
         return val
 

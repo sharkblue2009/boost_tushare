@@ -1,10 +1,9 @@
 import tushare as ts
-from ._passwd import TUS_TOKEN
 
-from .xcdb.xcdb import DATE_FORMAT, DATETIME_FORMAT
-from .schema import *
-from .utils.xcutils import *
+from ._passwd import TUS_TOKEN
+from .layout import *
 from .utils.qos import ThreadingTokenBucket
+from .utils.xcutils import *
 
 
 class XcNLBasic(object):
@@ -26,7 +25,7 @@ class XcNLBasic(object):
         #     code = stock + subfix
         #     return code
 
-        fields = 'ts_code,name,list_date'
+        fields = INDEX_INFO_META['columns']
         info1 = self.pro_api.index_basic(market='SSE', fields=fields)
         # info1.loc[:, 'ts_code'] = info1.loc[:, 'ts_code'].apply(conv1, subfix='.XSHG')
         info1.loc[:, 'exchange'] = 'SSE'
@@ -36,21 +35,16 @@ class XcNLBasic(object):
         info = pd.concat([info1, info2], axis=0)
         if not info.empty:
             info.loc[:, 'list_date'].fillna('20000101', inplace=True)
-
-            info_to_db = pd.DataFrame({
-                'ts_code': info['ts_code'],
-                'exchange': info['exchange'],
-                'name': info['name'],
-                'start_date': info['list_date'],
-                'end_date': '21000101'
-            })
-
-            return info_to_db
+            info.loc[:, 'exp_date'].fillna('21000101', inplace=True)
+            return info
         return None
 
     def set_stock_info(self):
-        """"""
-        fields = 'ts_code,symbol,name,exchange,area,industry,list_date,delist_date'
+        """
+        上市状态： L上市 D退市 P暂停上市
+        :return:
+        """
+        fields = STOCK_INFO_META['columns']
         info1 = self.pro_api.stock_basic(list_status='L', fields=fields)  # 上市状态： L上市 D退市 P暂停上市
         info2 = self.pro_api.stock_basic(list_status='D', fields=fields)
         info3 = self.pro_api.stock_basic(list_status='P', fields=fields)
@@ -58,15 +52,7 @@ class XcNLBasic(object):
         if not info.empty:
             # info.loc[:, 'ts_code'] = info.loc[:, 'ts_code'].apply(symbol_tus_to_std)
             info.loc[:, 'delist_date'].fillna('21000101', inplace=True)
-
-            info_to_db = pd.DataFrame({
-                'ts_code': info['ts_code'],
-                'exchange': info['exchange'],
-                'name': info['name'],
-                'start_date': info['list_date'],
-                'end_date': info['delist_date'],
-            })
-            return info_to_db
+            return info
         return None
 
     def set_fund_info(self):
@@ -74,23 +60,17 @@ class XcNLBasic(object):
 
         :return:
         """
-        fields = 'ts_code,name,list_date,delist_date'
+        fields = FUND_INFO_META['columns']
         info = self.pro_api.fund_basic(market='E', fields=fields)  # 交易市场: E场内 O场外（默认E）
         if not info.empty:
             # info2 = self.pro_api.fund_basic(market='O', fields=fields)
             # info = pd.concat([info1, info2], axis=0)
             # info.loc[:, 'ts_code'] = info.loc[:, 'ts_code'].apply(symbol_tus_to_std)
+            info.loc[:, 'list_date'].fillna('20000101', inplace=True)
             info.loc[:, 'delist_date'].fillna('21000101', inplace=True)
             info.loc[:, 'exchange'] = info.loc[:, 'ts_code'].apply(lambda x: 'SSE' if x.endswith('.SH') else 'SZ')
 
-            info_to_db = pd.DataFrame({
-                'ts_code': info['ts_code'],
-                'exchange': info['exchange'],
-                'name': info['name'],
-                'start_date': info['list_date'],
-                'end_date': info['delist_date'],
-            })
-            return info_to_db
+            return info
         return None
 
     def set_index_weight(self, index_symbol, date):
@@ -101,6 +81,9 @@ class XcNLBasic(object):
         :return:
         """
         # 找到所处月份的最后一个交易日
+        if not isinstance(date, pd.Timestamp):
+            date = pd.Timestamp(date)
+
         valid_day = date.strftime(DATE_FORMAT)
         info = self.pro_api.index_weight(index_code=index_symbol, trade_date=valid_day)
         if not info.empty:
@@ -142,6 +125,7 @@ class XcNLBasic(object):
 class XcNLPrice(object):
     pro_api = None
     master_db = None
+    ts_token = None
 
     def set_price_daily(self, code, start, end, astype='E'):
         """
@@ -150,6 +134,9 @@ class XcNLPrice(object):
         :param end:
         :return:
         """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
         start_raw = start.strftime(DATE_FORMAT)
         end_raw = end.strftime(DATE_FORMAT)
 
@@ -161,15 +148,20 @@ class XcNLPrice(object):
     # from ratelimit import limits, sleep_and_retry
     # @sleep_and_retry
     # @limits(30, period=120)
-    def set_price_minute(self, code, start, end, freq='1min', astype='E'):
+    def set_price_minute(self, code, start, end, freq='1min', astype='E', merge_first=True):
         """
+        Note: 停牌时，pro_bar对于分钟K线，仍然能取到数据，返回的OHLC是pre_close值， vol值为0.
+                但对于停牌时的日线， 则没有数据。
         :param code:
         :param start:
         :param end:
         :param freq:
-        :param resample: if use 1Min data resample to others
+        :param merge_first: True, merge first 9:30 Kbar to follow KBar.
         :return:
         """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
         start_raw = start.strftime(DATETIME_FORMAT)
         end_raw = (end + pd.Timedelta(hours=17)).strftime(DATETIME_FORMAT)
 
@@ -179,8 +171,38 @@ class XcNLPrice(object):
             data = data.rename(columns={'vol': 'volume'})
             # convert %Y-%m-%d %H:%M:%S to %Y%m%d %H:%M:%S
             data['trade_time'] = data['trade_time'].apply(lambda x: x.replace('-', ''))
+
+            nbars = XTUS_FREQ_BARS[freq] + 1
+            if len(data) % nbars != 0:
+                """
+                 002478.SZ, 2020-07-20 00:00:00-2020-09-24 00:00:00, 2372-49
+                 002481.SZ, 2020-07-20 00:00:00-2020-09-24 00:00:00, 2381-49
+                """
+                log.error('min kbar length incorrect: {}, {}-{}, {}-{}'.format(code, start, end, len(data), nbars))
+                return None
+
+            if merge_first:
+                # Handle the first row of every day. (the Kbar at 9:30)
+                # Note : Data from tushare is in reverse order
+                for k in range(len(data) - 1, 0, -nbars):
+                    v = data
+                    if True:
+                        # open KBar check.
+                        # assert (v.loc[k - 1, 'pre_close'] == v.loc[k, 'close'])  # Only work for Stocks
+                        tt = pd.Timestamp(v.trade_time[k])
+                        assert ((tt.hour == 9) & (tt.minute == 30))
+
+                    v.loc[k - 1, 'open'] = v.loc[k, 'open']  # Open
+                    v.loc[k - 1, 'high'] = v.loc[(k - 1):k, 'high'].max()  # High
+                    v.loc[k - 1, 'low'] = v.loc[(k - 1):k, 'low'].min()  # low
+                    v.loc[k - 1, 'volume'] = v.loc[(k - 1):k, 'volume'].sum()  # volume
+                    v.loc[k - 1, 'amount'] = v.loc[(k - 1):k, 'amount'].sum()  # amount
+
+                mask = (np.arange(len(data)) % nbars) != (nbars - 1)
+                data = data[mask]
+
         else:
-            print('min_data: {}, {}-{}'.format(code, start_raw, end_raw))
+            log.error('min data empty: {}, {}-{}'.format(code, start_raw, end_raw))
         return data
 
     def set_stock_daily_info(self, code, start, end):
@@ -191,13 +213,18 @@ class XcNLPrice(object):
         :param end:
         :return:
         """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
         fcols = STOCK_DAILY_INFO_META['columns']
 
         start_raw = start.strftime(DATE_FORMAT)
         end_raw = end.strftime(DATE_FORMAT)
-        self.ts_token.block_consume(1)
+
+        self.ts_token.block_consume(7)
+        # 每分钟最多访问该接口700次
         data = self.pro_api.daily_basic(ts_code=code, start_date=start_raw, end_date=end_raw,
-                                        fields=fcols)
+                                        fields=fcols + ['trade_date'])
 
         return data
 
@@ -208,11 +235,67 @@ class XcNLPrice(object):
         :param end:
         :return:
         """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
         fcols = STOCK_ADJFACTOR_META['columns']
         start_raw = start.strftime(DATE_FORMAT)
         end_raw = end.strftime(DATE_FORMAT)
         self.ts_token.block_consume(1)
-        data = self.pro_api.adj_factor(ts_code=code, start_date=start_raw, end_date=end_raw, fields=fcols)
+        data = self.pro_api.adj_factor(ts_code=code, start_date=start_raw, end_date=end_raw,
+                                       fields=fcols + ['trade_date'])
+
+        return data
+
+    def set_stock_moneyflow(self, code, start, end):
+        """
+        :param code:
+        :param start:
+        :param end:
+        :return:
+        """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
+        # fcols = STOCK_ADJFACTOR_META['columns']
+        start_raw = start.strftime(DATE_FORMAT)
+        end_raw = end.strftime(DATE_FORMAT)
+        self.ts_token.block_consume(1)
+        data = self.pro_api.moneyflow(ts_code=code, start_date=start_raw, end_date=end_raw)
+
+        return data
+
+    def set_stock_bakdaily(self, code, start, end):
+        """
+        :param code:
+        :param start:
+        :param end:
+        :return:
+        """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
+        start_raw = start.strftime(DATE_FORMAT)
+        end_raw = end.strftime(DATE_FORMAT)
+        self.ts_token.block_consume(1)
+        data = self.pro_api.bak_daily(ts_code=code, start_date=start_raw, end_date=end_raw)
+
+        return data
+
+    def set_stock_margindetail(self, code, start, end):
+        """
+        :param code:
+        :param start:
+        :param end:
+        :return:
+        """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
+        start_raw = start.strftime(DATE_FORMAT)
+        end_raw = end.strftime(DATE_FORMAT)
+        self.ts_token.block_consume(1)
+        data = self.pro_api.margin_detail(ts_code=code, start_date=start_raw, end_date=end_raw)
 
         return data
 
@@ -223,6 +306,9 @@ class XcNLPrice(object):
         :param code:
         :return:
         """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
         fcols = STOCK_SUSPEND_D_META['columns']
 
         start_raw = start.strftime(DATE_FORMAT)
@@ -240,7 +326,8 @@ class XcNLPrice(object):
         :return:
         """
         fcols = SUSPEND_D_META['columns']
-
+        if not isinstance(date, pd.Timestamp):
+            date = pd.Timestamp(date)
         start_raw = date.strftime(DATE_FORMAT)
 
         self.ts_token.block_consume(1)
@@ -303,7 +390,7 @@ class TusNetLoader(XcNLBasic, XcNLFinance, XcNLPrice):
 
     def __init__(self):
         """
-        :param xctus_last_date: Tushare last date with data available,
+        :param last_day: Tushare last date with data available,
                             we assume yesterday's data is available in today.
         """
         # self.calendar = get_calendar('XSHG')

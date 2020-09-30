@@ -5,15 +5,20 @@ from .apiwrapper import set_algo_instance
 from .rdbasic import XcReaderBasic
 from .rdfinance import XcReaderFinance
 from .rdprice import XcReaderPrice
-from .dxupdater import XcUpdaterPrice
-from .dxchecker import XcCheckerPrice
+from .utils.xcutils import *
 from .utils.memoize import lazyval
 from .proloader import netloader_init, TusNetLoader
 # from .xcdb.zleveldb import *
 from .xcdb.zlmdb import *
+from functools import partial
+from .domain import XcDomain
+from .xcdb.xcdb import *
+from .layout import *
+from logbook import Logger
+log = Logger('xtus')
 
 
-class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice, XcCheckerPrice):
+class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice):
     """
     Cache Reader for tushare data.
     """
@@ -22,12 +27,12 @@ class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice
     def netloader(self) -> TusNetLoader:
         return netloader_init()
 
-    def __init__(self, xctus_last_date=None, xctus_lmdb=True):
+    def __init__(self, last_day=None, dbtype=DBTYPE.DB_LMDB):
         """
-        :param xctus_last_date: Tushare last date with data available,
+        :param last_day: Tushare last date with data available,
                             we assume yesterday's data is available in today.
         """
-        if xctus_lmdb:
+        if dbtype == DBTYPE.DB_LMDB:
             self.master_db = XcLMDB(LMDB_NAME, readonly=False)
             self.acc = XcLMDBAccessor
             self.facc = partial(XcLMDBAccessor, self.master_db)
@@ -40,15 +45,18 @@ class XcTusBooster(XcReaderBasic, XcReaderFinance, XcReaderPrice, XcUpdaterPrice
             # self.facc = partial(XcLevelDBAccessor, self.master_db)
             pass
 
-        if xctus_last_date is None:
+        if last_day is None:
             """
             Last date always point to the end of Today. but tushare data may not exist at this time.
             """
-            self.xctus_last_date = pd.Timestamp.today().normalize() + pd.Timedelta(days=1)
+            self.xctus_last_day = pd.Timestamp.today().normalize() + pd.Timedelta(days=1)
         else:
-            self.xctus_last_date = xctus_last_date
+            self.xctus_last_day = last_day
 
-        print('Last date:{}'.format(self.xctus_last_date))
+        self.xctus_first_day = pd.Timestamp('20000101')
+
+        log.info('TuBooster: date range:{}>>>{}'.format(self.xctus_first_day, self.xctus_last_day))
+        # self.domain = XcDomain()
 
         super(XcTusBooster, self).__init__()
 
@@ -64,6 +72,6 @@ def tusbooster_init() -> XcTusBooster:
     global g_booster
     if g_booster is None:
         g_booster = XcTusBooster()
+        g_booster.init_domain()
         set_algo_instance(g_booster)
     return g_booster
-
