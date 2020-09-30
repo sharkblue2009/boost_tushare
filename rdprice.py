@@ -71,6 +71,8 @@ class XcReaderPrice(XcDomain):
                     ii = ii.reindex(index=dayindex)
                 out[dtkey] = db.save(dtkey, ii, raw_mode=True)
 
+        db.commit()
+
         out = list(out.values())
         out = np.vstack(out)
         all_out = pd.DataFrame(data=out, columns=EQUITY_DAILY_PRICE_META['columns'])
@@ -131,10 +133,10 @@ class XcReaderPrice(XcDomain):
                         # 如果全天无交易，vol == 0, 则清空df.
                         ii.loc[:, :] = np.nan
                 out[dtkey] = db.save(dtkey, ii, raw_mode=True)
+        db.commit()
 
         out = list(out.values())
         out = np.vstack(out)
-
         all_out = pd.DataFrame(data=out, columns=EQUITY_MINUTE_PRICE_META['columns'])
         allmins = self.gen_mindex_daily(mmdts[0], mmdts[-1], freq)
         all_out = all_out.set_index(allmins)
@@ -234,7 +236,7 @@ class XcReaderPrice(XcDomain):
                     ii.index = pd.to_datetime(ii.index, format=DATE_FORMAT)
                     ii = ii.reindex(index=dayindex)
                 out[dtkey] = db.save(dtkey, ii, raw_mode=True)
-
+        db.commit()
         out = list(out.values())
         out = np.concatenate(out)
         all_out = pd.DataFrame(data=out, columns=STOCK_ADJFACTOR_META['columns'])
@@ -261,8 +263,9 @@ class XcReaderPrice(XcDomain):
         if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             log.info('!!! xdxr info not exist, please use updater to download it first.')
             info = self.netloader.set_stock_xdxr(code)
-            return db.save(kk, info)
-
+            if info is not None:
+                val = db.save(kk, info)
+                return val
         return
 
     @api_call
@@ -280,8 +283,10 @@ class XcReaderPrice(XcDomain):
             val = db.load(kk)
             if val is not None:
                 return val
+
         if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
             info = self.netloader.set_stock_suspend(code)
-            return db.save(kk, info)
+            if info is not None:
+                return db.save(kk, info)
 
         return

@@ -78,7 +78,9 @@ class XcLMDBAccessor(XcAccessor):
     db = self.facc(TusSdbs.SDB_CALENDAR.value, GENERAL_OBJ_META)
     ...
     ...
-    del db
+    del db/ db.commit()
+
+    a Readonly transaction block can be reentrant by multi-thread, but a writeable txn-block cannot.
     """
 
     def __init__(self, master_db: XcLMDB, sdb: str, metadata=None, readonly=False):

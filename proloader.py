@@ -220,7 +220,9 @@ class XcNLPrice(object):
 
         start_raw = start.strftime(DATE_FORMAT)
         end_raw = end.strftime(DATE_FORMAT)
-        self.ts_token.block_consume(1)
+
+        self.ts_token.block_consume(7)
+        # 每分钟最多访问该接口700次
         data = self.pro_api.daily_basic(ts_code=code, start_date=start_raw, end_date=end_raw,
                                         fields=fcols + ['trade_date'])
 

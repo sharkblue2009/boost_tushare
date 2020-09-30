@@ -48,9 +48,11 @@ class TokenBucket(object):
 class ThreadingTokenBucket(object):
     def __init__(self, rate, capacity, full=True):
         """
-                :param rate: token per second
-                :param capacity: bucket capacity
-                """
+        rate_per_min = rate*60
+        e.g for a call which is 500/min limit, the token_amount for the call is rate*60/500
+        :param rate: token per second
+        :param capacity: bucket capacity
+        """
         self._lock = Lock()
         self._bucket = TokenBucket(rate, capacity, full)
 

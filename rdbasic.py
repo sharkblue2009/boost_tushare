@@ -285,6 +285,7 @@ class XcReaderBasic(XcDomain):
             if flag == IOFLAG.READ_XC or flag == IOFLAG.READ_NETDB:
                 ii = self.netloader.set_suspend_d(dd)
                 out[dtkey] = db.save(dtkey, ii, raw_mode=True)
+        db.commit()
 
         out = list(out.values())
         out = np.vstack(out)

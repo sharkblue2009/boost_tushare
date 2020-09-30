@@ -88,8 +88,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
             return
 
         bvalid = np.full((len(mmdts),), True, dtype=np.bool)
-        db = self.facc(TusSdbs.SDB_SUSPEND_D.value, SUSPEND_D_META)
-
+        db = self.facc(TusSdbs.SDB_SUSPEND_D.value, SUSPEND_D_META, readonly=True)
         for n, dd in enumerate(mmdts):
             dtkey = dt64_to_strdt(dd)
             val = db.load(dtkey, raw_mode=True)
@@ -97,6 +96,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 bvalid[n] = True  # update missed month data.
             else:
                 bvalid[n] = False
+        db.commit()
 
         if rollback > 0:
             # set tail to invalid to always download it
@@ -106,7 +106,9 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
             if not bvalid[n]:
                 data = self.netloader.set_suspend_d(dd)
                 dtkey = dt64_to_strdt(dd)
+                db = self.facc(TusSdbs.SDB_SUSPEND_D.value, SUSPEND_D_META)
                 db.save(dtkey, data)
+                db.commit()
 
         return np.sum(~bvalid)
 
@@ -126,7 +128,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
         if mmdts is None:
             return 0
 
-        db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
+        db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META, readonly=True)
         bvalid = np.full((len(mmdts),), True, dtype=np.bool)
 
         for n, dd in enumerate(mmdts):
@@ -143,9 +145,6 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
         db.commit()
         count = np.sum(~bvalid)
 
-        # Reopen Accessor
-        db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
-
         # 每次最大获取5000条记录
         max_units = 4700 // 23
         need_update = nadata_iter(bvalid, max_units)
@@ -159,12 +158,13 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 continue
             data = data.set_index('trade_date', drop=True)
             data.index = pd.to_datetime(data.index, format=DATE_FORMAT)
+            db = self.facc(TusSdbs.SDB_DAILY_PRICE.value + code, EQUITY_DAILY_PRICE_META)
             for tt in dts_upd:
                 dtkey = dt64_to_strdt(tt)
                 dayindex = self.gen_dindex_monthly(tt, tt)
                 xxd = data.reindex(index=dayindex)
                 db.save(dtkey, xxd)
-        db.commit()
+            db.commit()
         return count
 
     def update_price_minute(self, code, start, end, freq='1min', astype='E', rollback=10):
@@ -187,8 +187,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
             return 0
 
         bvalid = np.full((len(mmdts),), True, dtype=np.bool)
-        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq), EQUITY_MINUTE_PRICE_META)
-
+        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq), EQUITY_MINUTE_PRICE_META, readonly=True)
         for n, dd in enumerate(mmdts):
             dtkey = dt64_to_strdt(dd)
             val = db.load(dtkey, raw_mode=True)
@@ -199,11 +198,9 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                     bvalid[n] = self.integrity_check_kd_vmin(dd, val[:, 4], freq=freq, code=code, check_mode=0)
             else:
                 bvalid[n] = False
-
         count = np.sum(~bvalid)
         db.commit()
 
-        db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq), EQUITY_MINUTE_PRICE_META)
         # 每次最大获取8000条记录
         cc = {'1min': 1, '5min': 5, '15min': 15, '30min': 30, '60min': 60}
         max_units = 6000 // (240 // cc[freq] + 1)
@@ -218,6 +215,7 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 continue
             data = data.set_index('trade_time', drop=True)
             data.index = pd.to_datetime(data.index, format=DATETIME_FORMAT)
+            db = self.facc((TusSdbs.SDB_MINUTE_PRICE.value + code + freq), EQUITY_MINUTE_PRICE_META)
             for tt in dts_upd:
                 dtkey = dt64_to_strdt(tt)
                 minindex = self.gen_mindex_daily(tt, tt, freq)
@@ -226,8 +224,8 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                     # 如果全天无交易，vol == 0, 则清空df.
                     xxd.loc[:, :] = np.nan
                 db.save(dtkey, xxd)
+            db.commit()
 
-        db.commit()
         return count
 
     def update_stock_adjfactor(self, code, start, end, rollback=3):
@@ -243,8 +241,8 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
             return 0
 
         bvalid = np.full((len(mmdts),), True, dtype=np.bool)
-        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code), STOCK_ADJFACTOR_META)
 
+        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code), STOCK_ADJFACTOR_META, readonly=True)
         for n, dd in enumerate(mmdts):
             dtkey = dt64_to_strdt(dd)
             val = db.load(dtkey, raw_mode=True)
@@ -255,10 +253,9 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                     bvalid[n] = self.integrity_check_km_vday(dd, val[:, 0], code, check_mode=0)
             else:
                 bvalid[n] = False
-
-        count = np.sum(~bvalid)
         db.commit()
-        db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code), STOCK_ADJFACTOR_META)
+        count = np.sum(~bvalid)
+
         # 每次最大获取5000条记录
         max_units = 4000 // 23
         need_update = nadata_iter(bvalid, max_units)
@@ -272,12 +269,13 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 continue
             data = data.set_index('trade_date', drop=True)
             data.index = pd.to_datetime(data.index, format=DATE_FORMAT)
+            db = self.facc((TusSdbs.SDB_STOCK_ADJFACTOR.value + code), STOCK_ADJFACTOR_META)
             for tt in dts_upd:
                 dtkey = dt64_to_strdt(tt)
                 dayindex = self.gen_dindex_monthly(tt, tt)
                 xxd = data.reindex(index=dayindex)
                 db.save(dtkey, xxd)
-        db.commit()
+            db.commit()
         return count
 
     def update_stock_dayinfo(self, code, start, end, rollback=3):
@@ -292,9 +290,8 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
         if mmdts is None:
             return 0
 
-        db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code), STOCK_DAILY_INFO_META)
+        db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code), STOCK_DAILY_INFO_META, readonly=True)
         bvalid = np.full((len(mmdts),), True, dtype=np.bool)
-
         for n, dd in enumerate(mmdts):
             dtkey = dt64_to_strdt(dd)
             val = db.load(dtkey, raw_mode=True)
@@ -305,11 +302,9 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                     bvalid[n] = self.integrity_check_km_vday(dd, val[:, 0], code, check_mode=0)
             else:
                 bvalid[n] = False
-
-        count = np.sum(~bvalid)
         db.commit()
-        db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
-                       STOCK_DAILY_INFO_META)
+        count = np.sum(~bvalid)
+
         # 每次最大获取5000条记录
         max_units = 4700 // 23
         need_update = nadata_iter(bvalid, max_units)
@@ -323,12 +318,14 @@ class XcDBUpdater(XcReaderBasic, XcReaderPrice):
                 continue
             data = data.set_index('trade_date', drop=True)
             data.index = pd.to_datetime(data.index, format=DATE_FORMAT)
+            db = self.facc((TusSdbs.SDB_STOCK_DAILY_INFO.value + code),
+                           STOCK_DAILY_INFO_META)
             for tt in dts_upd:
                 dtkey = dt64_to_strdt(tt)
                 dayindex = self.gen_dindex_monthly(tt, tt)
                 xxd = data.reindex(index=dayindex)
                 db.save(dtkey, xxd)
-        db.commit()
+            db.commit()
         return count
 
     def update_stock_xdxr(self, code, start, end):
