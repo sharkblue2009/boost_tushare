@@ -140,6 +140,7 @@ class XcNLPrice(object):
         start_raw = start.strftime(DATE_FORMAT)
         end_raw = end.strftime(DATE_FORMAT)
 
+        self.ts_token.block_consume(5)
         data = ts.pro_bar(code, asset=astype, start_date=start_raw, end_date=end_raw, freq='D')
         if data is not None:
             data = data.rename(columns={'vol': 'volume'})

@@ -557,6 +557,13 @@ def tsshow(days):
     print('-' * 50)
 
 
+@click.command()
+def dbshow():
+    reader = tusbooster_init()
+    # reader.master_db.show()
+    reader.master_db.detail()
+
+
 first.add_command(update_basic)
 first.add_command(update_daily)
 first.add_command(update_xdxr)
@@ -567,6 +574,7 @@ first.add_command(update_index_minute)
 first.add_command(check_daily)
 first.add_command(check_index_daily)
 first.add_command(tsshow)
+first.add_command(dbshow)
 
 if __name__ == "__main__":
     import logbook, sys

@@ -1,6 +1,7 @@
 import lmdb
 from .xcdb import *
 from logbook import Logger
+
 log = Logger('lmdb')
 
 LMDB_NAME = 'D:/Database/stock_db/TusDBv2'
@@ -39,12 +40,52 @@ class XcLMDB(XCacheDB):
         self.close()
 
     def show(self):
+        """
+        db used_space = psize *(leaf_pages + branch_pages + overflow_pages)
+        :return:
+        """
         info = self.env.info()
-        log.info('DB Size is: {}MB'.format(info['map_size']//0x100000))
-        stat = self.env.stat()
-        log.info(stat)
+        log.info('DB Size is: {}MB'.format(info['map_size'] // 0x100000))
+        # stat = self.env.stat()
+        # log.info(stat)
         # info = self.env.max_key_size()
         # log.info(info)
+
+    def detail(self):
+        info = self.env.info()
+        db_map_size = info['map_size'] // 0x100000
+        log.info('DB Total Size is: {}MB'.format(db_map_size))
+        
+        txn = self.env.begin(db=None, write=False, parent=None)
+        total_size = 0
+        st = self.env.stat()
+        total_size += st['psize'] * (st['leaf_pages'] + st['branch_pages'] + st['overflow_pages'])
+
+        # get sub_db stats
+        all_stats = []
+        cursor = txn.cursor()
+        first = cursor.first()
+        if first:
+            while True:
+                k = cursor.key()
+                db = self.env.open_db(k, txn=txn, create=False)
+                try:
+                    stat = txn.stat(db)
+                    all_stats.append(stat)
+                except:
+                    print(k)
+
+                if not cursor.next():
+                    break
+
+        cursor.close()
+        txn.commit()
+
+        for st in all_stats:
+            total_size += st['psize'] * (st['leaf_pages'] + st['branch_pages'] + st['overflow_pages'])
+
+        total_size = total_size // 0x100000
+        log.info('Used space: {}MB, Percentage: {}%'.format(total_size, total_size*100//db_map_size))
 
     @staticmethod
     def _get_sdb(master_db, sdb_path: str):
@@ -90,6 +131,24 @@ class XcLMDBAccessor(XcAccessor):
         write_mode = not readonly
         self.txn = self.master.env.begin(db=self.db, write=write_mode, parent=None)
         return
+
+    def stat(self):
+        """
+        :return: Dict
+            psize
+                Size of a database page in bytes.
+            depth
+                Height of the B-tree.
+            branch_pages
+                Number of internal (non-leaf) pages.
+            leaf_pages
+                Number of leaf pages.
+            overflow_pages
+                Number of overflow pages.
+            entries
+                Number of data items.
+        """
+        return self.txn.stat()
 
     def __del__(self):
         """"""
