@@ -19,7 +19,7 @@ class XcLMDB(XCacheDB):
         if not self.name in DBS_OPENED.keys():
             log.info('Open DB: {}'.format(self.name))
             DBS_OPENED[self.name] = lmdb.open(
-                self.name, create=True, max_dbs=1000000, readonly=readonly, map_size=32 * 0x40000000, **kwargs)
+                self.name, create=True, max_dbs=1000000, readonly=readonly, map_size=64 * 0x40000000, **kwargs)
         else:
             log.info("Already Opened, use exist one")
             # raise FileExistsError('Already opened')

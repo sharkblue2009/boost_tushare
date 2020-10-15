@@ -173,7 +173,7 @@ def cntus_update_stock_day_ext(start_date='20150101', type='L'):
     log.info('Total units: {}'.format(np.sum(list(all_result.values()))))
 
 
-def cntus_update_stock_min(start_date='20190101', type='L'):
+def cntus_update_stock_min(start_date='20190101', type='L', freq='5min'):
     updater = tusupdater_init()
 
     df_stock = updater.get_stock_info()
@@ -188,13 +188,13 @@ def cntus_update_stock_min(start_date='20190101', type='L'):
             t_start = ss['start_date']
             t_end = ss['end_date']
             astype = ss['astype']
-            results[stk] = updater.update_price_minute(stk, t_start, t_end, freq='5min', astype=astype)
+            results[stk] = updater.update_price_minute(stk, t_start, t_end, freq=freq, astype=astype)
 
         return results
 
     end_date = pd.Timestamp.today().strftime('%Y%m%d')
 
-    log.info('Downloading stocks minute price: {}, {}-{}'.format(len(df_stock), start_date, end_date))
+    log.info('Downloading stocks minute price[{}]: {}, {}-{}'.format(freq, len(df_stock), start_date, end_date))
 
     all_symbols = []
     for k, stk in df_stock['ts_code'].items():
@@ -461,8 +461,9 @@ def update_daily_ext(start, type):
 @click.command()
 @click.option("--start", default='20170101', )
 @click.option("--type", default='L', )
-def update_minute(start, type):
-    cntus_update_stock_min(start_date=start, type=type)
+@click.option("--freq", default='5min', )
+def update_minute(start, type, freq):
+    cntus_update_stock_min(start_date=start, type=type, freq=freq)
     click.echo('done')
 
 
@@ -492,7 +493,6 @@ def check_daily(start):
 def check_index_daily(start):
     cntus_check_index_day(start_date=start)
     click.echo('done')
-
 
 
 @click.command()
