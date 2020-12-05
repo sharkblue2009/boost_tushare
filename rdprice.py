@@ -107,7 +107,7 @@ class XcReaderPrice(XcDomain):
         """
         if freq not in XTUS_FREQS:
             return None
-        mmdts = self.gen_keys_daily(start, end, code, 'E')
+        mmdts = self.gen_keys_daily(start, end, code, astype)
         if mmdts is None:
             return
 
