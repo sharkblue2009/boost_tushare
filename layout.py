@@ -1,3 +1,11 @@
+"""
+META descriptor format:
+tpk: key type of the records
+tpv: value type of the records
+dtype(optional): if record value is Dataframe, and all columns are the same type, we can explict specify the
+dtype, this can enhance the pickle load/dump speed. if not specify dtype, pickle dump/load will treat all data to
+'object' type, which will slow down the speed.
+"""
 from enum import Enum
 
 from .xcdb.xcdb import KVTYPE
@@ -762,4 +770,46 @@ STOCK_FIN_INDICATOR_META = {
         'rd_exp',
         'update_flag',
     ]
+}
+
+
+INDEX_DAILY_BASIC_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
+    'columns': [
+        # 'ts_code',
+        # 'trade_date',
+        'total_mv',
+        'float_mv',
+        'total_share',
+        'float_share',
+        'free_share',
+        'turnover_rate',
+        'turnover_rate_f',
+        'pe',
+        'pe_ttm',
+        'pb',
+    ],
+}
+
+
+INDEX_DAILY_INFO_META = {
+    'tpk': KVTYPE.TPK_DATE,
+    'tpv': KVTYPE.TPV_DFRAME,
+    'columns': [
+        # 'trade_date',
+        'ts_code',
+        'ts_name',
+        'com_count',
+        'total_share',
+        'float_share',
+        'total_mv',
+        'float_mv',
+        'amount',
+        'vol',
+        'trans_count',
+        'pe',
+        'tr',
+        'exchange',
+    ],
 }

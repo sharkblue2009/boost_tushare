@@ -73,58 +73,9 @@ class XcNLBasic(object):
             return info
         return None
 
-    def set_index_weight(self, index_symbol, date):
-        """
-        tushare index_weight数据, 月初第一个交易日和月末最后一个交易日更新(20200318: 只有月末更新数据？)
-        :param index_symbol:
-        :param date:
-        :return:
-        """
-        # 找到所处月份的最后一个交易日
-        if not isinstance(date, pd.Timestamp):
-            date = pd.Timestamp(date)
-
-        valid_day = date.strftime(DATE_FORMAT)
-        info = self.pro_api.index_weight(index_code=index_symbol, trade_date=valid_day)
-        if not info.empty:
-            # # t_dates = pd.to_datetime(info['trade_date'], format='%Y%m%d')
-            # # info = info[t_dates >= m_start]
-            # dtkey = info.loc[:, 'trade_date'].iloc[-1]
-
-            # info.loc[:, 'con_code'] = info['con_code'].apply(symbol_tus_to_std)
-            info = info[info['trade_date'] == valid_day]
-            return info
-        return info
-
-    def set_index_classify(self, level, src='SW'):
-        """
-        申万行业分类
-
-        接口：index_classify
-        描述：获取申万行业分类，包括申万28个一级分类，104个二级分类，227个三级分类的列表信息
-        :return:
-        """
-        lkey = level.upper()
-        info = self.pro_api.index_classify(level=lkey, src=src)
-        return info
-
-    def set_index_member(self, index_code):
-        """
-
-        :param index_code:
-        :return:
-        """
-
-        info = self.pro_api.index_member(index_code=index_code, fields=INDEX_MEMBER_META['columns'])
-        if not info.empty:
-            # info.loc[:, 'con_code'] = info['con_code'].apply(symbol_tus_to_std)
-            return info
-        return info
-
 
 class XcNLPrice(object):
     pro_api = None
-    master_db = None
     ts_token = None
 
     def set_price_daily(self, code, start, end, astype='E'):
@@ -387,7 +338,134 @@ class XcNLFinance(object):
         return data
 
 
-class TusNetLoader(XcNLBasic, XcNLFinance, XcNLPrice):
+class XcNLIndex(object):
+    pro_api = None
+    ts_token = None
+
+    def set_index_weight(self, index_symbol, date):
+        """
+        tushare index_weight数据, 月初第一个交易日和月末最后一个交易日更新(20200318: 只有月末更新数据？)
+        :param index_symbol:
+        :param date:
+        :return:
+        """
+        # 找到所处月份的最后一个交易日
+        if not isinstance(date, pd.Timestamp):
+            date = pd.Timestamp(date)
+
+        valid_day = date.strftime(DATE_FORMAT)
+        info = self.pro_api.index_weight(index_code=index_symbol, trade_date=valid_day)
+        if not info.empty:
+            # # t_dates = pd.to_datetime(info['trade_date'], format='%Y%m%d')
+            # # info = info[t_dates >= m_start]
+            # dtkey = info.loc[:, 'trade_date'].iloc[-1]
+
+            # info.loc[:, 'con_code'] = info['con_code'].apply(symbol_tus_to_std)
+            info = info[info['trade_date'] == valid_day]
+            return info
+        return info
+
+    def set_index_classify(self, level, src='SW'):
+        """
+        申万行业分类
+
+        接口：index_classify
+        描述：获取申万行业分类，包括申万28个一级分类，104个二级分类，227个三级分类的列表信息
+        :return:
+        """
+        lkey = level.upper()
+        info = self.pro_api.index_classify(level=lkey, src=src)
+        return info
+
+    def set_index_member(self, index_code):
+        """
+
+        :param index_code:
+        :return:
+        """
+
+        info = self.pro_api.index_member(index_code=index_code, fields=INDEX_MEMBER_META['columns'])
+        if not info.empty:
+            # info.loc[:, 'con_code'] = info['con_code'].apply(symbol_tus_to_std)
+            return info
+        return info
+
+    def set_index_dailybasic(self, code, start, end):
+        """
+        大盘指数每日指标
+        :param code:
+        :param start:
+        :param end:
+        :return:
+        """
+        if not isinstance(start, pd.Timestamp):
+            start, end = pd.Timestamp(start), pd.Timestamp(end)
+
+        start_raw = start.strftime(DATE_FORMAT)
+        end_raw = end.strftime(DATE_FORMAT)
+        self.ts_token.block_consume(1)
+        data = self.pro_api.index_dailybasic(ts_code=code, start_date=start_raw, end_date=end_raw)
+
+        return data
+
+    def set_market_daily_info(self, date):
+        """
+        市场交易统计
+        :param date:
+        :return:
+        """
+        if not isinstance(date, pd.Timestamp):
+            date = pd.Timestamp(date)
+
+        start_raw = date.strftime(DATE_FORMAT)
+        self.ts_token.block_consume(1)
+        data = self.pro_api.daily_info(trade_date=start_raw, exchange='SZ,SH', fields=INDEX_DAILY_INFO_META['columns'])
+
+        return data
+
+
+class XcNLFund(object):
+    pro_api = None
+    ts_token = None
+
+    def set_fund_portfolio(self, code, date):
+        if not isinstance(date, pd.Timestamp):
+            date = pd.Timestamp(date)
+
+        start_raw = date.strftime(DATE_FORMAT)
+        self.ts_token.block_consume(1)
+        data = self.pro_api.fund_portfolio(ts_code=code, )
+
+        return data
+
+
+class XcNLFuture(object):
+    pro_api = None
+    ts_token = None
+
+
+class XcNLOption(object):
+    pro_api = None
+    ts_token = None
+
+
+class XcNLCoBond(object):
+    """
+    convertible bond
+    """
+    pro_api = None
+    ts_token = None
+
+
+class XcNLForex(object):
+    pro_api = None
+    ts_token = None
+
+
+#####################################################################
+# Net Loader Main class
+#####################################################################
+class TusNetLoader(XcNLBasic, XcNLFinance, XcNLPrice, XcNLIndex, XcNLFund):
 
     def __init__(self):
         """
